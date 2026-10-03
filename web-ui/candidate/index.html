@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Candidate Verification & Setup Wizard | ProctorGuard</title>
+  <link rel="stylesheet" href="../static/css/proctor.css">
+  <style>
+    .wizard-container {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+    }
+    .wizard-steps-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+    .wizard-steps-header::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: var(--glass-border);
+      z-index: 1;
+      transform: translateY(-50%);
+    }
+    .wizard-step-node {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-primary);
+      padding: 0 1rem;
+    }
+    .step-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--text-secondary);
+      transition: all 0.3s ease;
+    }
+    .wizard-step-node.active .step-circle {
+      background: var(--accent-cyan);
+      border-color: #38bdf8;
+      color: #000;
+      box-shadow: 0 0 18px rgba(6, 182, 212, 0.5);
+    }
+    .wizard-step-node.completed .step-circle {
+      background: var(--accent-emerald);
+      border-color: #34d399;
+      color: #000;
+    }
+    .step-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .wizard-step-node.active .step-title {
+      color: #fff;
+    }
+    .step-pane {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .step-pane.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .preview-card {
+      background: #020617;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-card video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .preview-card .placeholder-msg {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      text-align: center;
+      padding: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Proctor Header -->
+  <header class="proctor-header">
+    <div class="proctor-logo">
+      <div class="proctor-logo-icon">🛡️</div>
+      <span>ProctorGuard Sandbox</span>
+    </div>
+    <div class="flex-gap-1">
+      <span class="badge-live-pulse">
+        <span class="pulse-dot"></span> System Ready
+      </span>
+    </div>
+  </header>
+
+  <div class="wizard-container">
+    <!-- Wizard Steps Header -->
+    <div class="wizard-steps-header">
+      <div class="wizard-step-node active" id="step-node-1">
+        <div class="step-circle" id="circle-1">1</div>
+        <div class="step-title">Camera & Mic</div>
+      </div>
+      <div class="wizard-step-node" id="step-node-2">
+        <div class="step-circle" id="circle-2">2</div>
+        <div class="step-title">Screen Capture</div>
+      </div>
+      <div class="wizard-step-node" id="step-node-3">
+        <div class="step-circle" id="circle-3">3</div>
+        <div class="step-title">Rules & Start</div>
+      </div>
+    </div>
+
+    <!-- STEP 1: Camera & Microphone Verification -->
+    <div class="glass-panel step-pane active" id="pane-step-1">
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem;">Step 1: Camera & Microphone Telemetry Check</h2>
+        <p class="text-muted" style="font-size: 0.9rem;">
+          Verify that your webcam and microphone are operational. Virtual camera software (OBS, ManyCam, etc.) is strictly forbidden.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Left: Live Video Preview -->
+        <div>
+          <div class="preview-card" id="webcam-preview-box">
+            <video id="webcam-preview" autoplay playsinline muted></video>
+            <div class="placeholder-msg" id="webcam-placeholder">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📷</div>
+              Webcam feed inactive.<br>Click "Test Hardware Devices" below.
+            </div>
+          </div>
+          <div id="camera-status-badge" style="margin-top: 0.75rem; display: none;"></div>
+        </div>
+
+        <!-- Right: Telemetry & Device Diagnostics -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="form-group">
+            <label class="form-label">Detected Camera Device:</label>
+            <input type="text" id="camera-device-label" class="form-input" readonly placeholder="Waiting for device scan...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Microphone Audio Telemetry (Live VU Meter):</label>
+            <div class="vu-meter-container" style="background: rgba(15,23,42,0.8); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--glass-border);">
+              <div class="vu-meter-track" style="height: 12px;">
+                <div class="vu-meter-bar" id="setup-vu-bar"></div>
+              </div>
+              <span class="vu-meter-label" id="setup-vu-label">0%</span>
+            </div>
+            <span class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">
+              Speak into your microphone. Normal speech registers between 25% and 65%.
+            </span>
+          </div>
+
+          <!-- Virtual Camera Scan Status -->
+          <div id="virtual-cam-scan-result" style="padding: 0.9rem; border-radius: var(--radius-md); background: rgba(30, 41, 59, 0.4); border: 1px solid var(--glass-border); font-size: 0.85rem;">
+            <div style="font-weight: 600; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>🔍</span> Hardware Heuristic Scan
+            </div>
+            <div id="scan-feedback-text" class="text-muted">No scan performed yet.</div>
+          </div>
+
+          <button type="button" class="btn btn-secondary" id="btn-start-hardware-test">
+            <span>🎥</span> Test Hardware Devices
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-primary" id="btn-to-step-2" disabled>
+          Continue to Screen Capture ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Full-screen Display Capture -->
+    <div class="glass-panel step-pane" id="pane-step-2">
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem;">Step 2: Mandatory Full-Screen Display Capture</h2>
+        <p class="text-muted" style="font-size: 0.9rem;">
+          To ensure exam integrity, you must share your <strong>Entire Screen</strong>. Sharing a single window or tab will not satisfy requirements.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Left: Screen Share Preview -->
+        <div>
+          <div class="preview-card" id="screen-preview-box">
+            <video id="screen-preview" autoplay playsinline muted></video>
+            <div class="placeholder-msg" id="screen-placeholder">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🖥️</div>
+              Screen capture inactive.<br>Click "Select & Share Full Screen".
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Screen Capture Diagnostics -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div style="background: rgba(15,23,42,0.8); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--glass-border);">
+            <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: #38bdf8;">Capture Requirements</h4>
+            <ul style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 1.25rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <li>Select <strong>"Entire Screen"</strong> in the browser prompt.</li>
+              <li>Dual monitors are prohibited (disconnect second monitor if present).</li>
+              <li>Stopping screen share during the exam counts as an immediate CRITICAL violation.</li>
+            </ul>
+          </div>
+
+          <div id="screen-status-box" style="padding: 0.9rem; border-radius: var(--radius-md); background: rgba(30, 41, 59, 0.4); border: 1px solid var(--glass-border); font-size: 0.85rem;">
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">Display Capture Status:</div>
+            <div id="screen-feedback-text" class="text-muted">Awaiting screen authorization...</div>
+          </div>
+
+          <button type="button" class="btn btn-secondary" id="btn-request-screen">
+            <span>📺</span> Select & Share Full Screen
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between;">
+        <button type="button" class="btn btn-secondary" id="btn-back-to-step-1">
+          ⬅ Back
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-to-step-3" disabled>
+          Continue to Agreement ➔
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Candidate Agreement & Transition -->
+    <div class="glass-panel step-pane" id="pane-step-3">
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem;">Step 3: Identity Verification & Exam Lockdown Agreement</h2>
+        <p class="text-muted" style="font-size: 0.9rem;">
+          Confirm your candidate credentials and accept the security lockdown terms before entering the exam room.
+        </p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Candidate Details -->
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="candidate-name-input">Full Name:</label>
+            <input type="text" id="candidate-name-input" class="form-input" value="Alex Rivera" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="candidate-id-input">Candidate ID / Registration #:</label>
+            <input type="text" id="candidate-id-input" class="form-input" value="CAND-89421" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="exam-code-input">Exam Course / Code:</label>
+            <input type="text" id="exam-code-input" class="form-input" value="CS-401: Distributed Algorithms" readonly>
+          </div>
+        </div>
+
+        <!-- Exam Rules Box -->
+        <div style="background: rgba(15,23,42,0.8); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="font-weight: 700; color: #fff; font-size: 0.95rem;">Lockdown Security Protocol:</div>
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem; color: var(--text-secondary);">
+            <span>🚫</span>
+            <div><strong>No Tab Switching:</strong> Navigating away from the exam window triggers an instant security violation.</div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem; color: var(--text-secondary);">
+            <span>⌨️</span>
+            <div><strong>Blocked Shortcuts:</strong> Copying, pasting, right-clicking, Alt+Tab, and F12 DevTools are actively blocked.</div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem; color: var(--text-secondary);">
+            <span>🎙️</span>
+            <div><strong>Continuous Audio Analysis:</strong> Sustained whisper or external voice triggers incident telemetry.</div>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 0.5rem; color: var(--text-secondary);">
+            <span>⚠️</span>
+            <div><strong>3 Warning Limit:</strong> Reaching 3 violations locks the exam screen immediately.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agreement Checkbox -->
+      <div style="margin-bottom: 2rem; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-md); padding: 1rem;">
+        <label class="custom-checkbox-container">
+          <input type="checkbox" id="agreement-checkbox">
+          <span style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.4;">
+            I confirm that I am Alex Rivera and that I will take this examination in strict compliance with the proctoring rules. I consent to real-time webcam, screen, and audio monitoring and acknowledge that violations will be permanently recorded in the audit log.
+          </span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: space-between;">
+        <button type="button" class="btn btn-secondary" id="btn-back-to-step-2">
+          ⬅ Back
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-enter-exam" disabled style="padding: 0.75rem 2rem; font-size: 1rem;">
+          🔒 Enter Locked Exam Room
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../static/js/audio_monitor.js"></script>
+  <script src="../static/js/camera_check.js"></script>
+  <script>
+    // State
+    let userMediaStream = null;
+    let userScreenStream = null;
+    let audioMonitor = null;
+    let isCameraVerified = false;
+    let isScreenVerified = false;
+
+    // DOM Elements
+    const pane1 = document.getElementById('pane-step-1');
+    const pane2 = document.getElementById('pane-step-2');
+    const pane3 = document.getElementById('pane-step-3');
+
+    const node1 = document.getElementById('step-node-1');
+    const node2 = document.getElementById('step-node-2');
+    const node3 = document.getElementById('step-node-3');
+
+    const webcamVideo = document.getElementById('webcam-preview');
+    const webcamPlaceholder = document.getElementById('webcam-placeholder');
+    const cameraDeviceLabel = document.getElementById('camera-device-label');
+    const scanFeedbackText = document.getElementById('scan-feedback-text');
+    const cameraStatusBadge = document.getElementById('camera-status-badge');
+    const btnStartHardwareTest = document.getElementById('btn-start-hardware-test');
+    const btnToStep2 = document.getElementById('btn-to-step-2');
+
+    const screenVideo = document.getElementById('screen-preview');
+    const screenPlaceholder = document.getElementById('screen-placeholder');
+    const screenFeedbackText = document.getElementById('screen-feedback-text');
+    const btnRequestScreen = document.getElementById('btn-request-screen');
+    const btnBackToStep1 = document.getElementById('btn-back-to-step-1');
+    const btnToStep3 = document.getElementById('btn-to-step-3');
+
+    const agreementCheckbox = document.getElementById('agreement-checkbox');
+    const btnBackToStep2 = document.getElementById('btn-back-to-step-2');
+    const btnEnterExam = document.getElementById('btn-enter-exam');
+    const candidateNameInput = document.getElementById('candidate-name-input');
+    const candidateIdInput = document.getElementById('candidate-id-input');
+
+    // 1. Hardware Test Handler (Camera & Audio)
+    btnStartHardwareTest.addEventListener('click', async () => {
+      btnStartHardwareTest.disabled = true;
+      btnStartHardwareTest.textContent = 'Scanning hardware...';
+
+      try {
+        // Enforce virtual camera heuristics
+        const stream = await CameraChecker.requestVerifiedStream({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: true
+        });
+
+        userMediaStream = stream;
+        webcamVideo.srcObject = stream;
+        webcamPlaceholder.style.display = 'none';
+
+        const videoTrack = stream.getVideoTracks()[0];
+        const label = videoTrack.label || 'Default System Webcam';
+        cameraDeviceLabel.value = label;
+
+        // Perform full inventory scan
+        const scan = await CameraChecker.scanDevices();
+        if (scan.virtualDevices.length > 0) {
+          scanFeedbackText.innerHTML = `<span style="color:#f97316;">⚠️ Virtual camera detected in system: <strong>${scan.virtualDevices[0].label}</strong>. Active camera is hardware verified.</span>`;
+        } else {
+          scanFeedbackText.innerHTML = `<span style="color:#10b981;">✓ All cameras clean. Hardware device: "${label}". No virtual camera signatures detected.</span>`;
+        }
+
+        // Start Audio Telemetry VU Meter
+        if (stream.getAudioTracks().length > 0) {
+          audioMonitor = new AudioMonitor({
+            vuBarElement: '#setup-vu-bar',
+            vuLabelElement: '#setup-vu-label',
+            threshold: 30
+          });
+          await audioMonitor.start(stream);
+        }
+
+        isCameraVerified = true;
+        btnToStep2.disabled = false;
+        btnStartHardwareTest.textContent = '✓ Hardware Verified';
+        btnStartHardwareTest.style.borderColor = '#10b981';
+
+      } catch (err) {
+        console.error('Camera/Audio error:', err);
+        if (err.name === 'VirtualCameraError') {
+          scanFeedbackText.innerHTML = `<span style="color:#ef4444;">⛔ BLOCKED: ${err.message}</span>`;
+          alert('SECURITY NOTICE: Virtual camera detected! You must connect a genuine physical webcam to proceed.');
+        } else {
+          scanFeedbackText.innerHTML = `<span style="color:#ef4444;">Error accessing camera/mic: ${err.message}</span>`;
+        }
+        btnStartHardwareTest.disabled = false;
+        btnStartHardwareTest.textContent = 'Retry Hardware Test';
+      }
+    });
+
+    // Step 1 -> Step 2
+    btnToStep2.addEventListener('click', () => {
+      pane1.classList.remove('active');
+      pane2.classList.add('active');
+      node1.classList.remove('active');
+      node1.classList.add('completed');
+      node2.classList.add('active');
+    });
+
+    // Step 2 -> Step 1
+    btnBackToStep1.addEventListener('click', () => {
+      pane2.classList.remove('active');
+      pane1.classList.add('active');
+      node2.classList.remove('active');
+      node1.classList.remove('completed');
+      node1.classList.add('active');
+    });
+
+    // 2. Screen Share Request
+    btnRequestScreen.addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            displaySurface: 'monitor',
+            cursor: 'always'
+          },
+          audio: false
+        });
+
+        const track = stream.getVideoTracks()[0];
+        const settings = (track && track.getSettings) ? track.getSettings() : {};
+        const displaySurface = settings.displaySurface;
+
+        // STRICT ENFORCEMENT: Only Entire Screen ('monitor') is permitted!
+        if (displaySurface && displaySurface !== 'monitor') {
+          // Immediately terminate the non-compliant window/tab stream
+          stream.getTracks().forEach(t => t.stop());
+          userScreenStream = null;
+          screenVideo.srcObject = null;
+          screenPlaceholder.style.display = 'block';
+          isScreenVerified = false;
+          btnToStep3.disabled = true;
+
+          btnRequestScreen.textContent = '⚠️ Re-select: Share Entire Screen';
+          btnRequestScreen.style.background = 'rgba(239, 68, 68, 0.2)';
+          btnRequestScreen.style.borderColor = '#ef4444';
+
+          const surfaceName = displaySurface === 'window' ? 'Single Application Window' : (displaySurface === 'browser' ? 'Single Browser Tab' : displaySurface);
+
+          screenFeedbackText.innerHTML = `
+            <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 8px; padding: 14px; margin-top: 10px; text-align: left;">
+              <div style="color: #ef4444; font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.25rem;">🚫</span> PROCTOR RESTRICTION: ENTIRE SCREEN REQUIRED
+              </div>
+              <div style="color: #fca5a5; font-size: 0.85rem; margin-top: 6px; line-height: 1.45;">
+                You shared an <strong>${surfaceName}</strong> (${settings.width || '1366'}x${settings.height || '720'}). 
+                Proctoring rules strictly prohibit sharing a single window or tab because secondary windows, chat applications, and split-screen aids cannot be audited.
+              </div>
+              <div style="color: #f1f5f9; font-size: 0.85rem; margin-top: 8px; background: rgba(0,0,0,0.35); padding: 8px 10px; border-radius: 6px; border-left: 3px solid #ef4444;">
+                👉 <strong>How to fix:</strong> Click <em>"Re-select: Share Entire Screen"</em> below. In the browser dialog, stay on the <strong>"Entire Screen"</strong> tab (do NOT click "Window" or "Chrome Tab") and select your screen.
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // Passed validation: Entire Screen confirmed
+        userScreenStream = stream;
+        screenVideo.srcObject = stream;
+        screenPlaceholder.style.display = 'none';
+
+        btnRequestScreen.style.background = '';
+        btnRequestScreen.style.borderColor = '';
+
+        let extraWarning = '';
+        if (window.screen && window.screen.isExtended) {
+          extraWarning = `<div style="margin-top:6px; color:#fbbf24; font-size:0.8rem;">⚠️ Multi-monitor topology detected. Please disconnect external displays before starting the exam.</div>`;
+        }
+
+        screenFeedbackText.innerHTML = `
+          <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 10px; margin-top: 8px;">
+            <span style="color:#10b981; font-weight: 700;">✓ Entire screen display capture verified (${settings.width || '1920'}x${settings.height || '1080'}, full monitor).</span>
+            ${extraWarning}
+          </div>
+        `;
+
+        track.onended = () => {
+          screenFeedbackText.innerHTML = `<span style="color:#ef4444; font-weight: 700;">⚠️ Screen sharing stopped. Entire screen display capture is mandatory to proceed.</span>`;
+          isScreenVerified = false;
+          btnToStep3.disabled = true;
+          screenPlaceholder.style.display = 'block';
+          btnRequestScreen.textContent = 'Share Entire Screen';
+        };
+
+        isScreenVerified = true;
+        btnToStep3.disabled = false;
+        btnRequestScreen.textContent = '✓ Entire Screen Capture Active';
+
+      } catch (err) {
+        console.warn('Screen share error:', err);
+        screenFeedbackText.innerHTML = `<span style="color:#ef4444;">Screen capture was cancelled or denied. Full entire screen share is required.</span>`;
+        isScreenVerified = false;
+        btnToStep3.disabled = true;
+        btnRequestScreen.textContent = 'Share Entire Screen';
+      }
+    });
+
+    // Step 2 -> Step 3
+    btnToStep3.addEventListener('click', () => {
+      if (!isScreenVerified || !userScreenStream) {
+        alert('Verification Required: You must share your Entire Screen before continuing.');
+        return;
+      }
+      pane2.classList.remove('active');
+      pane3.classList.add('active');
+      node2.classList.remove('active');
+      node2.classList.add('completed');
+      node3.classList.add('active');
+    });
+
+    // Step 3 -> Step 2
+    btnBackToStep2.addEventListener('click', () => {
+      pane3.classList.remove('active');
+      pane2.classList.add('active');
+      node3.classList.remove('active');
+      node2.classList.remove('completed');
+      node2.classList.add('active');
+    });
+
+    // Agreement toggle
+    agreementCheckbox.addEventListener('change', () => {
+      btnEnterExam.disabled = !agreementCheckbox.checked;
+    });
+
+    // Step 3 -> Enter Exam Room
+    btnEnterExam.addEventListener('click', () => {
+      const candName = candidateNameInput.value.trim() || 'Alex Rivera';
+      const candId = candidateIdInput.value.trim() || 'CAND-89421';
+
+      // Save candidate session state to sessionStorage
+      sessionStorage.setItem('proctor_candidate_name', candName);
+      sessionStorage.setItem('proctor_candidate_id', candId);
+      sessionStorage.setItem('proctor_setup_verified', 'true');
+
+      // Stop audio monitor before navigating (exam.html will re-acquire)
+      if (audioMonitor) audioMonitor.stop();
+      if (userMediaStream) userMediaStream.getTracks().forEach(t => t.stop());
+      if (userScreenStream) userScreenStream.getTracks().forEach(t => t.stop());
+
+      // Redirect to Exam Room
+      window.location.href = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
+    });
+  </script>
+</body>
+</html>
