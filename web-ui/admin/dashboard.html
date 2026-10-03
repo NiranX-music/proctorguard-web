@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proctor Live Control Room | ProctorGuard</title>
+  <link rel="stylesheet" href="../static/css/proctor.css">
+  <style>
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+      .incident-feed-panel {
+        height: 500px;
+        position: static;
+      }
+    }
+
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .metric-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .metric-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #fff;
+    }
+
+    .metric-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .risk-badge {
+      padding: 0.3rem 0.65rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .risk-badge.risk-low {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .risk-badge.risk-medium {
+      background: rgba(234, 179, 8, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(234, 179, 8, 0.4);
+    }
+
+    .risk-badge.risk-high {
+      background: rgba(249, 115, 22, 0.18);
+      color: #fb923c;
+      border: 1px solid rgba(249, 115, 22, 0.45);
+    }
+
+    .risk-badge.risk-critical {
+      background: rgba(239, 68, 68, 0.22);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.55);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+    }
+
+    .status-badge-active {
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .status-badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .status-badge-locked {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .status-badge-terminated {
+      background: rgba(100, 116, 139, 0.2);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.4);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .filter-pill {
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .filter-pill.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    /* Modal dialog */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 1.5rem;
+    }
+
+    .modal-box {
+      max-width: 500px;
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header class="proctor-header">
+    <div class="proctor-logo">
+      <div class="proctor-logo-icon">🛡️</div>
+      <span>ProctorGuard Control Room</span>
+    </div>
+
+    <!-- Center Session Selector -->
+    <div class="flex-gap-2">
+      <div class="form-group" style="flex-direction: row; align-items: center;">
+        <label for="select-session" class="form-label" style="margin-bottom:0; font-size: 0.78rem;">Session:</label>
+        <select id="select-session" class="form-select" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; min-width: 160px;">
+          <option value="default">Default Session</option>
+        </select>
+      </div>
+
+      <button class="btn btn-secondary btn-sm" id="btn-refresh-data" title="Force Refresh Session Data">
+        🔄 Sync
+      </button>
+
+      <button class="btn btn-secondary btn-sm" id="btn-sound-toggle" title="Toggle Critical Alert Sound">
+        🔔 Sound: ON
+      </button>
+
+      <button class="btn btn-secondary btn-sm" id="btn-admin-gemini-config" style="color: #d8b4fe; border-color: rgba(168,85,247,0.4);" title="Configure Google Gemini AI for Audio & Voice Analysis">
+        🤖 <span id="admin-gemini-badge">Gemini AI Active</span>
+      </button>
+    </div>
+
+    <!-- Right Quick Links -->
+    <div class="flex-gap-1">
+      <a href="review.html" class="btn btn-secondary btn-sm">
+        📊 Incident Review & Scrubber
+      </a>
+      <a href="simulator.html" class="btn btn-primary btn-sm">
+        🧪 Cheat Simulator
+      </a>
+      <a href="../index.html" class="btn btn-secondary btn-sm" title="Exit to Portal Home">
+        🏠 Portal
+      </a>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="container">
+    <!-- Top Metrics Overview -->
+    <div class="metrics-bar">
+      <!-- Metric 1: Active Candidates -->
+      <div class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Active Candidates</span>
+          <span class="metric-value text-emerald" id="metric-active-candidates">0</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);" id="metric-total-candidates">0 Total Registered</span>
+        </div>
+        <div class="metric-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+          👥
+        </div>
+      </div>
+
+      <!-- Metric 2: Flagged Incidents -->
+      <div class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Flagged Incidents</span>
+          <span class="metric-value text-amber" id="metric-total-incidents">0</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Real-time Telemetry Events</span>
+        </div>
+        <div class="metric-icon-wrap" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+          ⚠️
+        </div>
+      </div>
+
+      <!-- Metric 3: Critical Violations -->
+      <div class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Critical Violations</span>
+          <span class="metric-value text-red" id="metric-critical-incidents">0</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);" id="metric-locked-candidates">0 Candidates Locked</span>
+        </div>
+        <div class="metric-icon-wrap" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+          🚨
+        </div>
+      </div>
+
+      <!-- Metric 4: Avg Session Risk -->
+      <div class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Avg Session Risk</span>
+          <div style="display: flex; align-items: baseline; gap: 0.4rem;">
+            <span class="metric-value text-cyan" id="metric-avg-risk">0</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">/ 100</span>
+          </div>
+          <span style="font-size: 0.72rem;" class="text-emerald" id="metric-risk-label">Nominal Integrity</span>
+        </div>
+        <div class="metric-icon-wrap" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">
+          📈
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-layout">
+      <!-- Left: Candidate Wall Matrix -->
+      <section>
+        <!-- Filter and Search Header -->
+        <div class="flex-between" style="margin-bottom: 1.25rem;">
+          <div class="flex-gap-2">
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff;">
+              Candidate Live Monitors (<span id="candidate-count-badge">0</span>)
+            </h2>
+            <div class="flex-gap-1">
+              <button class="filter-pill active" data-status="ALL">All</button>
+              <button class="filter-pill" data-status="ACTIVE">Active</button>
+              <button class="filter-pill" data-status="WARNING">Warning</button>
+              <button class="filter-pill" data-status="LOCKED">Locked</button>
+              <button class="filter-pill" data-status="TERMINATED">Terminated</button>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="candidate-search-input" class="form-input" placeholder="Search candidate..." style="padding: 0.35rem 0.85rem; font-size: 0.82rem; width: 180px;">
+            <select id="candidate-sort-select" class="form-select" style="padding: 0.35rem 0.85rem; font-size: 0.82rem;">
+              <option value="risk-desc">Highest Risk First</option>
+              <option value="risk-asc">Lowest Risk First</option>
+              <option value="name-asc">Candidate Name</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Candidate Cards Grid Container -->
+        <div class="candidate-grid" id="candidate-matrix">
+          <!-- Dynamically populated candidate cards -->
+        </div>
+
+        <!-- Empty State Message -->
+        <div id="no-candidates-notice" class="glass-panel" style="text-align: center; padding: 3rem 1.5rem; display: none;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">👥</div>
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">No Candidates Detected in this Session</h3>
+          <p class="text-muted" style="font-size: 0.85rem; max-width: 480px; margin: 0 auto 1.5rem auto;">
+            Candidates will appear automatically once they start the exam or complete setup verification. You can also simulate violations in the Cheat Simulator.
+          </p>
+          <a href="simulator.html" class="btn btn-primary btn-sm">Open Cheat Simulator</a>
+        </div>
+      </section>
+
+      <!-- Right: Real-Time Incident Alert Stream -->
+      <aside class="glass-panel incident-feed-panel">
+        <div class="incident-feed-header">
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">Live Incident Stream</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted);" id="incident-feed-sub">Active session telemetry feed</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-clear-feed" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+            Clear
+          </button>
+        </div>
+
+        <!-- Filter Severity Pills -->
+        <div style="display: flex; gap: 0.35rem; padding: 0.75rem 0; border-bottom: 1px solid var(--glass-border); overflow-x: auto;">
+          <button class="filter-pill active" data-sev="ALL">All</button>
+          <button class="filter-pill" data-sev="CRITICAL">Critical</button>
+          <button class="filter-pill" data-sev="HIGH">High</button>
+          <button class="filter-pill" data-sev="MEDIUM">Medium</button>
+          <button class="filter-pill" data-sev="LOW">Low</button>
+        </div>
+
+        <!-- Feed Item List Container -->
+        <div class="incident-feed-list" id="incident-feed-container">
+          <!-- Dynamically populated incident cards -->
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Snapshot Viewer Modal -->
+  <div class="modal-backdrop" id="snapshot-modal" style="display: none;">
+    <div class="modal-box" style="max-width: 680px;">
+      <div class="flex-between" style="margin-bottom: 1rem;">
+        <div>
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff;" id="modal-snap-title">Incident Snapshot</h3>
+          <span class="mono text-muted" style="font-size: 0.75rem;" id="modal-snap-time">Timestamp</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btn-close-snap">✕</button>
+      </div>
+
+      <div style="width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center;">
+        <img id="modal-snap-img" src="" alt="Snapshot Frame" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
+
+      <div class="glass-panel" style="padding: 0.85rem; font-size: 0.82rem; margin-bottom: 1rem;">
+        <div class="flex-between" style="margin-bottom: 0.3rem;">
+          <span class="text-muted">Event Type:</span>
+          <span class="mono" style="font-weight: 700;" id="modal-snap-event">EVENT</span>
+        </div>
+        <div class="flex-between" style="margin-bottom: 0.3rem;">
+          <span class="text-muted">Severity:</span>
+          <span id="modal-snap-sev">SEVERITY</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-muted">Details:</span>
+          <span style="color: #fff;" id="modal-snap-msg">Message</span>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="btn-close-snap-2">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Warning Modal -->
+  <div class="modal-backdrop" id="warn-dialog-modal" style="display: none;">
+    <div class="modal-box">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">
+        Issue Warning Strike to <span id="warn-target-name" class="text-cyan">Candidate</span>
+      </h3>
+      <p class="text-muted" style="font-size: 0.82rem; margin-bottom: 1rem;">
+        This warning will be displayed as a high-priority modal on the candidate's exam screen.
+      </p>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label">Warning Reason / Policy Note:</label>
+        <select id="warn-preset-select" class="form-select" style="margin-bottom: 0.5rem;">
+          <option value="Proctor Warning: Maintain focus on the examination screen.">Eye Gaze / Face Deviation</option>
+          <option value="Proctor Warning: Unauthorized background conversation detected.">Suspicious Audio / Conversation</option>
+          <option value="Proctor Warning: Window blur or tab switching is strictly prohibited.">Tab Switching / Focus Loss</option>
+          <option value="Proctor Warning: Secondary peripheral devices must be disconnected.">Hardware Peripheral Issue</option>
+          <option value="custom">Custom Message...</option>
+        </select>
+        <textarea id="warn-custom-text" class="form-input" style="height: 80px; resize: none;" placeholder="Type custom warning message to candidate..."></textarea>
+      </div>
+
+      <div class="flex-gap-2" style="justify-content: flex-end;">
+        <button class="btn btn-secondary" id="btn-cancel-warn">Cancel</button>
+        <button class="btn btn-warning" id="btn-confirm-send-warn">Send Warning Strike</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gemini AI Settings Modal for Admin -->
+  <div class="modal-backdrop" id="admin-gemini-modal" style="display: none;">
+    <div class="modal-box" style="border-color: #a855f7; box-shadow: 0 0 35px rgba(168,85,247,0.35);">
+      <div class="flex-between" style="margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.5rem;">🤖</span>
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #fff; margin: 0;">Gemini AI Proctoring Configuration</h3>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btn-close-admin-gemini">✕</button>
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1rem;">
+        Global Gemini API configuration used by ProctorGuard for real-time acoustic analysis, voice transcription, and candidate explanation validation.
+      </p>
+      <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+        <span class="text-muted">Status:</span>
+        <span id="admin-gemini-pill" class="status-badge-active">Checking...</span>
+      </div>
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <label class="form-label" style="font-size: 0.85rem;">Google Gemini API Key:</label>
+        <input type="password" id="admin-gemini-key-input" class="form-input" placeholder="AIzaSy..." style="font-family: var(--font-mono); font-size: 0.85rem;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">Used to call <code>gemini-2.5-flash</code> for live verification.</span>
+      </div>
+      <div id="admin-gemini-msg" style="display: none; padding: 0.6rem; border-radius: 4px; font-size: 0.8rem; margin-bottom: 1rem;"></div>
+      <div class="flex-gap-2" style="justify-content: flex-end;">
+        <button class="btn btn-secondary" id="btn-cancel-admin-gemini">Close</button>
+        <button class="btn btn-primary" style="background: #9333ea; border-color: #a855f7;" id="btn-save-admin-gemini">Save & Test Key</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../static/js/proctor_socket.js"></script>
+
+  <script>
+    /**
+     * Proctor Live Control Room Controller
+     */
+    // State
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentSessionId = urlParams.get('session_id') || urlParams.get('sessionId') || 'default';
+    let socket = null;
+    let soundEnabled = true;
+
+    // Cache of session candidates & incidents
+    const candidatesMap = new Map(); // candidateId -> candidateObj
+    const incidentsList = []; // Array of incident objects
+    let statusFilter = 'ALL';
+    let severityFilter = 'ALL';
+    let searchQuery = '';
+    let sortMode = 'risk-desc';
+
+    // DOM References
+    const selectSession = document.getElementById('select-session');
+    const candidateMatrix = document.getElementById('candidate-matrix');
+    const noCandidatesNotice = document.getElementById('no-candidates-notice');
+    const incidentFeedContainer = document.getElementById('incident-feed-container');
+
+    const metricActiveCandidates = document.getElementById('metric-active-candidates');
+    const metricTotalCandidates = document.getElementById('metric-total-candidates');
+    const metricTotalIncidents = document.getElementById('metric-total-incidents');
+    const metricCriticalIncidents = document.getElementById('metric-critical-incidents');
+    const metricLockedCandidates = document.getElementById('metric-locked-candidates');
+    const metricAvgRisk = document.getElementById('metric-avg-risk');
+    const metricRiskLabel = document.getElementById('metric-risk-label');
+    const candidateCountBadge = document.getElementById('candidate-count-badge');
+
+    const btnRefresh = document.getElementById('btn-refresh-data');
+    const btnSoundToggle = document.getElementById('btn-sound-toggle');
+    const candidateSearchInput = document.getElementById('candidate-search-input');
+    const candidateSortSelect = document.getElementById('candidate-sort-select');
+
+    // Modals
+    const snapshotModal = document.getElementById('snapshot-modal');
+    const modalSnapImg = document.getElementById('modal-snap-img');
+    const modalSnapTime = document.getElementById('modal-snap-time');
+    const modalSnapEvent = document.getElementById('modal-snap-event');
+    const modalSnapSev = document.getElementById('modal-snap-sev');
+    const modalSnapMsg = document.getElementById('modal-snap-msg');
+    const btnCloseSnap = document.getElementById('btn-close-snap');
+    const btnCloseSnap2 = document.getElementById('btn-close-snap-2');
+
+    const warnDialogModal = document.getElementById('warn-dialog-modal');
+    const warnTargetName = document.getElementById('warn-target-name');
+    const warnPresetSelect = document.getElementById('warn-preset-select');
+    const warnCustomText = document.getElementById('warn-custom-text');
+    const btnCancelWarn = document.getElementById('btn-cancel-warn');
+    const btnConfirmSendWarn = document.getElementById('btn-confirm-send-warn');
+    let activeWarningCandidateId = null;
+
+    // 1. Audio Notification Synthesizer (Zero External Dependencies)
+    function playAlertChime(severity) {
+      if (!soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (severity === 'CRITICAL') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        } else if (severity === 'HIGH') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        }
+      } catch (e) {
+        // AudioContext may be suspended before user interaction
+      }
+    }
+
+    btnSoundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      btnSoundToggle.textContent = soundEnabled ? '🔔 Sound: ON' : '🔕 Sound: OFF';
+      btnSoundToggle.style.color = soundEnabled ? '#34d399' : '#94a3b8';
+    });
+
+    // 2. Load Sessions List
+    async function loadSessionsList() {
+      try {
+        const res = await fetch('/api/sessions');
+        if (res.ok) {
+          const sessions = await res.json();
+          selectSession.innerHTML = '';
+
+          // Add default option if empty
+          if (!sessions || sessions.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = 'default';
+            opt.textContent = 'Default Session (default)';
+            selectSession.appendChild(opt);
+          } else {
+            sessions.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s.sessionId;
+              opt.textContent = `${s.name || 'Session'} (${s.sessionId})`;
+              if (s.sessionId === currentSessionId) {
+                opt.selected = true;
+              }
+              selectSession.appendChild(opt);
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Could not list sessions:', e);
+      }
+    }
+
+    selectSession.addEventListener('change', () => {
+      currentSessionId = selectSession.value;
+      candidatesMap.clear();
+      incidentsList.length = 0;
+      initWebSocketConnection();
+      loadSessionData();
+    });
+
+    // 3. Connect WebSocket
+    function initWebSocketConnection() {
+      if (socket) {
+        socket.disconnect();
+      }
+
+      socket = new ProctorSocket({
+        role: 'admin',
+        sessionId: currentSessionId,
+        onConnect: () => {
+          console.log(`Proctor Admin connected to session ${currentSessionId}`);
+        },
+        onDisconnect: () => {
+          console.warn('Proctor Admin disconnected, retrying...');
+        },
+        onMessage: (msg) => {
+          handleIncomingMessage(msg);
+        }
+      });
+
+      socket.connect();
+    }
+
+    function handleIncomingMessage(msg) {
+      if (!msg) return;
+
+      // Initial snapshot of session
+      if (msg.type === 'session_snapshot') {
+        if (Array.isArray(msg.candidates)) {
+          msg.candidates.forEach(c => candidatesMap.set(c.candidateId, c));
+        }
+        if (Array.isArray(msg.incidents)) {
+          msg.incidents.forEach(inc => {
+            // Unshift so latest are first
+            if (!incidentsList.some(item => (item.id === inc.id && item.timestamp === inc.timestamp))) {
+              incidentsList.push(inc);
+            }
+          });
+        }
+        renderDashboard();
+      }
+
+      // Live incident reported from candidate or companion
+      if (msg.type === 'incident_reported') {
+        const inc = msg.incident || {};
+        inc.candidateId = msg.candidateId;
+        inc.sessionId = msg.sessionId;
+
+        // Add to front of incidents list
+        incidentsList.unshift(inc);
+
+        // Update candidate in map
+        let cand = candidatesMap.get(msg.candidateId) || {
+          candidateId: msg.candidateId,
+          name: msg.candidateId,
+          sessionId: msg.sessionId
+        };
+
+        cand.riskScore = msg.riskScore !== undefined ? msg.riskScore : (cand.riskScore || 0);
+        cand.status = msg.candidateStatus || cand.status || 'ACTIVE';
+        if (msg.evaluation) {
+          cand.warningCount = msg.evaluation.highWarningCount || cand.warningCount || 0;
+        }
+        if (inc.snapshotFrame) {
+          cand.lastSnapshot = inc.snapshotFrame;
+        }
+
+        candidatesMap.set(msg.candidateId, cand);
+
+        // Play audio alert for High/Critical
+        if (inc.severity === 'CRITICAL' || inc.severity === 'HIGH') {
+          playAlertChime(inc.severity);
+        }
+
+        renderDashboard();
+      }
+
+      // Warning issued sync
+      if (msg.type === 'warning_issued') {
+        const cand = candidatesMap.get(msg.candidateId);
+        if (cand) {
+          cand.warningCount = msg.warningCount;
+          candidatesMap.set(msg.candidateId, cand);
+          renderDashboard();
+        }
+      }
+
+      // Gemini AI audio explanation verdict
+      if (msg.type === 'ai_audio_verdict') {
+        const isAccepted = msg.verdict === 'ACCEPTED';
+        const aiIncident = {
+          id: 'ai_' + Date.now(),
+          sessionId: msg.sessionId,
+          candidateId: msg.candidateId,
+          eventType: isAccepted ? 'AI_AUDIO_EXPLANATION_ACCEPTED' : 'AI_AUDIO_EXPLANATION_REJECTED',
+          severity: isAccepted ? 'LOW' : 'HIGH',
+          timestamp: msg.timestamp || new Date().toISOString(),
+          metadata: {
+            message: `🤖 Gemini AI: ${msg.verdict} for candidate ${msg.candidateId} (${msg.soundClassification || 'Audio'}). Feedback: ${msg.candidateFeedback || msg.analysis}`,
+            soundClassification: msg.soundClassification,
+            verdict: msg.verdict,
+            confidence: msg.confidence,
+            waiveStrike: msg.waiveStrike
+          }
+        };
+        incidentsList.unshift(aiIncident);
+        renderDashboard();
+      }
+    }
+
+    // 4. REST Data Fetch Fallback
+    async function loadSessionData() {
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(currentSessionId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.candidates)) {
+            data.candidates.forEach(c => candidatesMap.set(c.candidateId, c));
+          }
+          if (Array.isArray(data.recentIncidents)) {
+            data.recentIncidents.forEach(inc => {
+              if (!incidentsList.some(item => item.id === inc.id)) {
+                incidentsList.push(inc);
+              }
+            });
+          }
+          renderDashboard();
+        }
+      } catch (err) {
+        console.warn('Error fetching session data:', err);
+      }
+    }
+
+    btnRefresh.addEventListener('click', () => {
+      loadSessionData();
+      if (socket) socket.send({ type: 'refresh' });
+    });
+
+    // 5. Render Candidate Matrix & Metrics
+    function renderDashboard() {
+      renderMetrics();
+      renderCandidateCards();
+      renderIncidentFeed();
+    }
+
+    function renderMetrics() {
+      const candidates = Array.from(candidatesMap.values());
+      const totalCount = candidates.length;
+      const activeCount = candidates.filter(c => c.status === 'ACTIVE').length;
+      const lockedCount = candidates.filter(c => c.status === 'LOCKED').length;
+
+      const totalIncidents = incidentsList.length;
+      const criticalIncidents = incidentsList.filter(i => i.severity === 'CRITICAL').length;
+
+      let sumRisk = 0;
+      candidates.forEach(c => sumRisk += (c.riskScore || 0));
+      const avgRisk = totalCount > 0 ? Math.round(sumRisk / totalCount) : 0;
+
+      metricActiveCandidates.textContent = activeCount;
+      metricTotalCandidates.textContent = `${totalCount} Registered`;
+      metricTotalIncidents.textContent = totalIncidents;
+      metricCriticalIncidents.textContent = criticalIncidents;
+      metricLockedCandidates.textContent = `${lockedCount} Candidate${lockedCount === 1 ? '' : 's'} Locked`;
+      metricAvgRisk.textContent = avgRisk;
+      candidateCountBadge.textContent = totalCount;
+
+      if (avgRisk < 25) {
+        metricRiskLabel.textContent = 'Nominal Session Risk';
+        metricRiskLabel.className = 'text-emerald';
+        metricAvgRisk.className = 'metric-value text-emerald';
+      } else if (avgRisk < 50) {
+        metricRiskLabel.textContent = 'Moderate Elevated Risk';
+        metricRiskLabel.className = 'text-amber';
+        metricAvgRisk.className = 'metric-value text-amber';
+      } else {
+        metricRiskLabel.textContent = 'Critical Session Violations';
+        metricRiskLabel.className = 'text-red';
+        metricAvgRisk.className = 'metric-value text-red';
+      }
+    }
+
+    function getRiskClass(score) {
+      if (score < 25) return 'risk-low';
+      if (score < 50) return 'risk-medium';
+      if (score < 75) return 'risk-high';
+      return 'risk-critical';
+    }
+
+    function getStatusBadge(status) {
+      status = (status || 'ACTIVE').toUpperCase();
+      if (status === 'ACTIVE') return '<span class="status-badge-active">ACTIVE</span>';
+      if (status === 'WARNING') return '<span class="status-badge-warning">WARNING</span>';
+      if (status === 'LOCKED') return '<span class="status-badge-locked">LOCKED</span>';
+      if (status === 'TERMINATED') return '<span class="status-badge-terminated">TERMINATED</span>';
+      return `<span class="status-badge-active">${status}</span>`;
+    }
+
+    function renderCandidateCards() {
+      let list = Array.from(candidatesMap.values());
+
+      // Filter by status
+      if (statusFilter !== 'ALL') {
+        list = list.filter(c => (c.status || 'ACTIVE').toUpperCase() === statusFilter);
+      }
+
+      // Filter by search query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(c => 
+          (c.name && c.name.toLowerCase().includes(q)) ||
+          (c.candidateId && c.candidateId.toLowerCase().includes(q))
+        );
+      }
+
+      // Sort
+      if (sortMode === 'risk-desc') {
+        list.sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+      } else if (sortMode === 'risk-asc') {
+        list.sort((a, b) => (a.riskScore || 0) - (b.riskScore || 0));
+      } else if (sortMode === 'name-asc') {
+        list.sort((a, b) => (a.name || a.candidateId).localeCompare(b.name || b.candidateId));
+      }
+
+      if (list.length === 0) {
+        candidateMatrix.innerHTML = '';
+        noCandidatesNotice.style.display = 'block';
+        return;
+      }
+
+      noCandidatesNotice.style.display = 'none';
+      candidateMatrix.innerHTML = '';
+
+      list.forEach(c => {
+        const card = document.createElement('div');
+        const score = c.riskScore || 0;
+        const riskClass = getRiskClass(score);
+        const isLocked = c.status === 'LOCKED';
+        const isTerminated = c.status === 'TERMINATED';
+
+        card.className = `candidate-card ${isLocked ? 'card-locked' : ''} ${score >= 75 ? 'card-flagged-critical' : (score >= 50 ? 'card-flagged-high' : '')}`;
+
+        // Find candidate's last snapshot if available
+        const candIncidents = incidentsList.filter(i => i.candidateId === c.candidateId);
+        const lastSnap = c.lastSnapshot || (candIncidents.find(i => i.snapshotFrame) || {}).snapshotFrame;
+
+        // Video tile representation
+        const videoHtml = lastSnap 
+          ? `<img src="${lastSnap}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="Candidate Snapshot">`
+          : `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.8rem; gap: 0.4rem;">
+               <span style="font-size: 1.6rem;">📷</span>
+               <span>Live Telemetry Active</span>
+             </div>`;
+
+        card.innerHTML = `
+          <!-- Video Stream Tile -->
+          <div class="video-stream-container">
+            ${videoHtml}
+            <div class="stream-overlay-badges">
+              <span class="stream-status-pill">
+                <span class="pulse-dot" style="background: ${isTerminated ? '#64748b' : (isLocked ? '#ef4444' : '#10b981')};"></span>
+                ${c.status || 'ACTIVE'}
+              </span>
+              <span class="risk-badge ${riskClass}">
+                Risk: ${score}
+              </span>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="candidate-card-body">
+            <div class="candidate-meta-row">
+              <div class="candidate-name-id">
+                <span class="candidate-name">${c.name || 'Candidate ' + c.candidateId.substring(0, 6)}</span>
+                <span class="candidate-id-badge mono">${c.candidateId}</span>
+              </div>
+              <div>
+                ${getStatusBadge(c.status)}
+              </div>
+            </div>
+
+            <!-- Volume VU Meter & Warnings -->
+            <div class="flex-between" style="font-size: 0.75rem; color: var(--text-secondary);">
+              <span>Audio Level:</span>
+              <span class="mono">${c.status === 'ACTIVE' ? 'Normal (22 dB)' : 'Muted'}</span>
+            </div>
+            <div class="vu-meter-container">
+              <div class="vu-meter-track">
+                <div class="vu-meter-bar" style="width: ${c.status === 'ACTIVE' ? '28%' : '0%'};"></div>
+              </div>
+              <div class="vu-meter-label">${c.status === 'ACTIVE' ? '28%' : '0%'}</div>
+            </div>
+
+            <div class="flex-between" style="font-size: 0.75rem; color: var(--text-secondary);">
+              <span>Warning Strikes:</span>
+              <span class="mono" style="font-weight: 700; color: ${c.warningCount >= 2 ? '#ef4444' : '#fbbf24'};">${c.warningCount || 0} / 3</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="candidate-actions">
+              <button class="btn btn-warning btn-sm btn-action-warn" ${isTerminated ? 'disabled' : ''}>
+                ⚠️ Warn
+              </button>
+              ${isLocked 
+                ? `<button class="btn btn-secondary btn-sm btn-action-unlock" ${isTerminated ? 'disabled' : ''}>🔓 Unlock</button>`
+                : `<button class="btn btn-danger btn-sm btn-action-lock" ${isTerminated ? 'disabled' : ''}>🔒 Lock</button>`
+              }
+              <button class="btn btn-danger btn-sm btn-action-terminate" ${isTerminated ? 'disabled' : ''}>
+                ⛔ Terminate
+              </button>
+              <a href="review.html?sessionId=${encodeURIComponent(currentSessionId)}&candidateId=${encodeURIComponent(c.candidateId)}" class="btn btn-secondary btn-sm">
+                🔍 Review
+              </a>
+            </div>
+          </div>
+        `;
+
+        // Bind Action Handlers
+        const btnWarn = card.querySelector('.btn-action-warn');
+        if (btnWarn) {
+          btnWarn.addEventListener('click', () => openWarningDialog(c.candidateId, c.name || c.candidateId));
+        }
+
+        const btnLock = card.querySelector('.btn-action-lock');
+        if (btnLock) {
+          btnLock.addEventListener('click', () => executeCandidateAction(c.candidateId, 'LOCK', 'Exam locked remotely by proctor'));
+        }
+
+        const btnUnlock = card.querySelector('.btn-action-unlock');
+        if (btnUnlock) {
+          btnUnlock.addEventListener('click', () => executeCandidateAction(c.candidateId, 'UNLOCK', 'Exam unlocked remotely by proctor'));
+        }
+
+        const btnTerminate = card.querySelector('.btn-action-terminate');
+        if (btnTerminate) {
+          btnTerminate.addEventListener('click', () => {
+            if (confirm(`Confirm force termination of session for candidate ${c.name || c.candidateId}? This action is irreversible.`)) {
+              executeCandidateAction(c.candidateId, 'TERMINATE', 'Exam session terminated by proctor administrator');
+            }
+          });
+        }
+
+        candidateMatrix.appendChild(card);
+      });
+    }
+
+    function renderIncidentFeed() {
+      let filtered = incidentsList;
+
+      if (severityFilter !== 'ALL') {
+        filtered = filtered.filter(i => (i.severity || 'MEDIUM').toUpperCase() === severityFilter);
+      }
+
+      if (filtered.length === 0) {
+        incidentFeedContainer.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0;">
+            No incidents recorded matching filter.
+          </div>
+        `;
+        return;
+      }
+
+      incidentFeedContainer.innerHTML = '';
+
+      filtered.slice(0, 40).forEach(inc => {
+        const item = document.createElement('div');
+        item.className = 'incident-item';
+
+        const sev = (inc.severity || 'MEDIUM').toUpperCase();
+        let sevClass = 'badge-medium';
+        if (sev === 'CRITICAL') sevClass = 'badge-critical';
+        else if (sev === 'HIGH') sevClass = 'badge-high';
+        else if (sev === 'LOW') sevClass = 'badge-low';
+
+        const timeStr = inc.timestamp ? new Date(inc.timestamp).toLocaleTimeString() : 'Just now';
+        const eventName = inc.eventType || inc.type || 'INCIDENT';
+        const msg = (inc.metadata && inc.metadata.message) || inc.message || eventName;
+
+        let snapHtml = '';
+        if (inc.snapshotFrame) {
+          snapHtml = `<img src="${inc.snapshotFrame}" class="incident-thumbnail" alt="Incident Snapshot">`;
+        }
+
+        item.innerHTML = `
+          <div class="incident-item-top">
+            <span class="badge-severity ${sevClass}">${sev}</span>
+            <span class="incident-item-time">${timeStr}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span class="mono" style="font-size: 0.8rem; font-weight: 700; color: #fff;">${eventName}</span>
+            <span class="mono text-muted" style="font-size: 0.72rem;">${inc.candidateId || 'Unknown'}</span>
+          </div>
+          <div class="incident-item-desc">${msg}</div>
+          ${snapHtml}
+        `;
+
+        // Click to view snapshot modal
+        if (inc.snapshotFrame) {
+          item.addEventListener('click', () => {
+            openSnapshotModal(inc);
+          });
+        }
+
+        incidentFeedContainer.appendChild(item);
+      });
+    }
+
+    // 6. Action Execution (REST + WebSocket Dual Dispatch)
+    async function executeCandidateAction(candidateId, action, reason) {
+      // 1. Dispatch WebSocket command
+      if (socket) {
+        socket.send({
+          type: 'command',
+          target: candidateId,
+          candidateId: candidateId,
+          action: action,
+          reason: reason,
+          message: reason
+        });
+      }
+
+      // 2. Dispatch REST API call
+      try {
+        const endpoint = action.toLowerCase();
+        const res = await fetch(`/api/sessions/${encodeURIComponent(currentSessionId)}/candidates/${encodeURIComponent(candidateId)}/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason, message: reason })
+        });
+
+        if (res.ok) {
+          const cand = candidatesMap.get(candidateId);
+          if (cand) {
+            if (action === 'LOCK') cand.status = 'LOCKED';
+            if (action === 'UNLOCK') cand.status = 'ACTIVE';
+            if (action === 'TERMINATE') cand.status = 'TERMINATED';
+            candidatesMap.set(candidateId, cand);
+            renderDashboard();
+          }
+        }
+      } catch (err) {
+        console.warn(`Action ${action} REST error:`, err);
+      }
+    }
+
+    // 7. Modal Handlers
+    function openSnapshotModal(inc) {
+      modalSnapImg.src = inc.snapshotFrame;
+      modalSnapTime.textContent = inc.timestamp ? new Date(inc.timestamp).toLocaleString() : '';
+      modalSnapEvent.textContent = inc.eventType || inc.type || 'INCIDENT';
+      modalSnapSev.innerHTML = `<span class="badge-severity ${inc.severity === 'CRITICAL' ? 'badge-critical' : 'badge-high'}">${inc.severity}</span>`;
+      modalSnapMsg.textContent = (inc.metadata && inc.metadata.message) || inc.message || 'Telemetry violation recorded.';
+      snapshotModal.style.display = 'flex';
+    }
+
+    btnCloseSnap.addEventListener('click', () => snapshotModal.style.display = 'none');
+    btnCloseSnap2.addEventListener('click', () => snapshotModal.style.display = 'none');
+
+    function openWarningDialog(candidateId, candidateName) {
+      activeWarningCandidateId = candidateId;
+      warnTargetName.textContent = candidateName;
+      warnCustomText.value = warnPresetSelect.value;
+      warnDialogModal.style.display = 'flex';
+    }
+
+    warnPresetSelect.addEventListener('change', () => {
+      if (warnPresetSelect.value === 'custom') {
+        warnCustomText.value = '';
+        warnCustomText.focus();
+      } else {
+        warnCustomText.value = warnPresetSelect.value;
+      }
+    });
+
+    btnCancelWarn.addEventListener('click', () => {
+      warnDialogModal.style.display = 'none';
+      activeWarningCandidateId = null;
+    });
+
+    btnConfirmSendWarn.addEventListener('click', async () => {
+      if (!activeWarningCandidateId) return;
+      const message = warnCustomText.value.trim() || 'Warning: Examination integrity policy violation detected.';
+
+      try {
+        await fetch(`/api/sessions/${encodeURIComponent(currentSessionId)}/candidates/${encodeURIComponent(activeWarningCandidateId)}/warn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message, reason: 'Proctor Warning Strike' })
+        });
+      } catch (e) {
+        console.warn('Error issuing warning strike:', e);
+      }
+
+      warnDialogModal.style.display = 'none';
+      activeWarningCandidateId = null;
+      loadSessionData();
+    });
+
+    // 8. Filters and Controls
+    document.querySelectorAll('.filter-pill[data-status]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill[data-status]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        statusFilter = pill.getAttribute('data-status');
+        renderCandidateCards();
+      });
+    });
+
+    document.querySelectorAll('.filter-pill[data-sev]').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill[data-sev]').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        severityFilter = pill.getAttribute('data-sev');
+        renderIncidentFeed();
+      });
+    });
+
+    candidateSearchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderCandidateCards();
+    });
+
+    candidateSortSelect.addEventListener('change', (e) => {
+      sortMode = e.target.value;
+      renderCandidateCards();
+    });
+
+    document.getElementById('btn-clear-feed').addEventListener('click', () => {
+      incidentsList.length = 0;
+      renderIncidentFeed();
+      renderMetrics();
+    });
+
+    // 9. Periodic Poll Backup (Every 10 seconds)
+    setInterval(() => {
+      loadSessionData();
+    }, 10000);
+
+    // 10. Gemini AI Admin Modal Logic
+    async function checkAdminGeminiConfig() {
+      try {
+        const resp = await fetch('/api/config/gemini');
+        if (resp.ok) {
+          const data = await resp.json();
+          const badge = document.getElementById('admin-gemini-badge');
+          const pill = document.getElementById('admin-gemini-pill');
+          if (data.configured) {
+            badge.textContent = 'Gemini AI Active';
+            badge.parentElement.style.borderColor = 'rgba(168,85,247,0.5)';
+            badge.parentElement.style.color = '#d8b4fe';
+            pill.textContent = `Configured (${data.maskedKey})`;
+            pill.className = 'status-badge-active';
+          } else {
+            badge.textContent = 'Configure Gemini Key';
+            badge.parentElement.style.borderColor = 'rgba(245,158,11,0.5)';
+            badge.parentElement.style.color = '#fbbf24';
+            pill.textContent = 'No API Key Configured';
+            pill.className = 'status-badge-warning';
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini admin config check error:', err);
+      }
+    }
+
+    const adminGeminiModal = document.getElementById('admin-gemini-modal');
+    document.getElementById('btn-admin-gemini-config').addEventListener('click', () => {
+      checkAdminGeminiConfig();
+      adminGeminiModal.style.display = 'flex';
+      document.getElementById('admin-gemini-msg').style.display = 'none';
+    });
+
+    document.getElementById('btn-close-admin-gemini').addEventListener('click', () => {
+      adminGeminiModal.style.display = 'none';
+    });
+
+    document.getElementById('btn-cancel-admin-gemini').addEventListener('click', () => {
+      adminGeminiModal.style.display = 'none';
+    });
+
+    document.getElementById('btn-save-admin-gemini').addEventListener('click', async () => {
+      const keyInput = document.getElementById('admin-gemini-key-input');
+      const key = (keyInput.value || '').trim();
+      const msgBox = document.getElementById('admin-gemini-msg');
+      const saveBtn = document.getElementById('btn-save-admin-gemini');
+
+      if (!key) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.textContent = 'Please enter a valid Gemini API key.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Testing & Saving...';
+
+      try {
+        const resp = await fetch('/api/config/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: key })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(16, 185, 129, 0.2)';
+          msgBox.style.color = '#a7f3d0';
+          msgBox.textContent = '✅ Gemini API Key verified and saved successfully!';
+          keyInput.value = '';
+          checkAdminGeminiConfig();
+          setTimeout(() => {
+            adminGeminiModal.style.display = 'none';
+          }, 1500);
+        } else {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+          msgBox.style.color = '#fca5a5';
+          msgBox.textContent = `Error: ${data.detail || 'Failed to authenticate key.'}`;
+        }
+      } catch (err) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.textContent = `Network error: ${err.message}`;
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save & Test Key';
+      }
+    });
+
+    // Initial Startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadSessionsList();
+      initWebSocketConnection();
+      await loadSessionData();
+      await checkAdminGeminiConfig();
+    });
+  </script>
+</body>
+</html>
