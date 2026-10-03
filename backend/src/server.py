@@ -614,7 +614,6 @@ async def verify_audio_explanation(payload: Dict[str, Any]):
             }
         })
 
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     body = {
         "contents": [{"parts": parts}],
         "generationConfig": {
@@ -623,24 +622,40 @@ async def verify_audio_explanation(payload: Dict[str, Any]):
         }
     }
 
+    models_to_try = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    eval_result = None
+    last_err = ""
+
     try:
         async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.post(gemini_url, json=body)
-            if resp.status_code != 200:
-                logger.error(f"Gemini API returned error {resp.status_code}: {resp.text}")
+            for model_name in models_to_try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                try:
+                    resp = await client.post(gemini_url, json=body)
+                    if resp.status_code == 200:
+                        res_json = resp.json()
+                        raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                        eval_result = json.loads(raw_text)
+                        logger.info(f"Gemini evaluation succeeded using {model_name}")
+                        break
+                    else:
+                        last_err = f"{resp.status_code}: {resp.text}"
+                        logger.warning(f"Gemini {model_name} returned {resp.status_code}, trying fallback...")
+                except Exception as e:
+                    last_err = str(e)
+                    logger.warning(f"Gemini {model_name} connection error: {e}")
+
+            if not eval_result:
+                logger.error(f"All Gemini models exhausted. Last error: {last_err}")
                 return {
                     "verdict": "PENDING_PROCTOR_REVIEW",
                     "confidence": 0.5,
                     "soundClassification": "Upstream Gemini error",
                     "transcription": "[API Error]",
-                    "analysis": f"Gemini returned status {resp.status_code}.",
-                    "candidateFeedback": "AI audio verification temporarily unavailable. Your explanation was logged for manual review.",
+                    "analysis": f"Gemini temporary error: {last_err}",
+                    "candidateFeedback": "AI audio verification temporarily busy. Your explanation was logged for manual review.",
                     "waiveStrike": False,
                 }
-
-            res_json = resp.json()
-            raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
-            eval_result = json.loads(raw_text)
 
             # Broadcast AI verdict live to connected Admin Dashboards
             await signaling.broadcast_to_admins(session_id, {
@@ -931,3 +946,44 @@ app.mount("/app", StaticFiles(directory=str(WEB_UI_DIR), html=True), name="stati
 @app.get("/")
 async def root():
     return RedirectResponse(url="/app/")
+
+
+@app.get("/index.html")
+async def index_html():
+    return RedirectResponse(url="/app/index.html")
+
+
+@app.get("/candidate")
+@app.get("/candidate/")
+async def candidate_root():
+    return RedirectResponse(url="/app/candidate/index.html")
+
+
+@app.get("/exam")
+@app.get("/exam/")
+async def exam_root():
+    return RedirectResponse(url="/app/candidate/exam.html")
+
+
+@app.get("/admin")
+@app.get("/admin/")
+async def admin_root():
+    return RedirectResponse(url="/app/admin/dashboard.html")
+
+
+@app.get("/review")
+@app.get("/review/")
+async def review_root():
+    return RedirectResponse(url="/app/admin/review.html")
+
+
+@app.get("/simulator")
+@app.get("/simulator/")
+async def simulator_root():
+    return RedirectResponse(url="/app/admin/simulator.html")
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return HTMLResponse(content="", status_code=204)
+
