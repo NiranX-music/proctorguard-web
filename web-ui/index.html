@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProctorGuard | Enterprise Event-Driven Proctoring Suite</title>
+  <link rel="stylesheet" href="static/css/proctor.css">
+  <style>
+    .hero-section {
+      text-align: center;
+      padding: 4rem 1.5rem 2.5rem 1.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.9rem;
+      background: rgba(6, 182, 212, 0.12);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 1.5rem;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+    }
+
+    .hero-title {
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .portal-section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin: 2.5rem 0;
+    }
+
+    @media (max-width: 900px) {
+      .portal-section-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-title {
+        font-size: 2.2rem;
+      }
+    }
+
+    .portal-module-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      transition: all 0.25s ease;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .portal-module-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .portal-module-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue));
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .portal-module-card:hover::before {
+      opacity: 1;
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .architecture-layers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
+    .layer-card {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .layer-num {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Proctor Header -->
+  <header class="proctor-header">
+    <div class="proctor-logo">
+      <div class="proctor-logo-icon">🛡️</div>
+      <span>ProctorGuard Platform</span>
+    </div>
+
+    <div class="flex-gap-2">
+      <span class="badge-live-pulse" id="backend-health-badge">
+        <span class="pulse-dot"></span> Checking System...
+      </span>
+      <a href="admin/dashboard.html" class="btn btn-primary btn-sm">
+        Proctor Console →
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-badge">
+      <span>⚡</span> Next-Gen Event-Driven Proctoring Architecture
+    </div>
+    <h1 class="hero-title">
+      Autonomous Exam Security & Real-Time Telemetry
+    </h1>
+    <p class="hero-subtitle">
+      Zero-latency multi-layer candidate monitoring, automated behavioral scoring, WebRTC media signaling, and live proctor control room.
+    </p>
+    <div class="flex-center" style="gap: 1rem; flex-wrap: wrap;">
+      <a href="candidate/index.html" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: 0.95rem;">
+        Candidate Setup Wizard
+      </a>
+      <a href="admin/dashboard.html" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 0.95rem;">
+        Live Proctor Dashboard
+      </a>
+      <a href="admin/simulator.html" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: 0.95rem;">
+        Cheat Simulator
+      </a>
+    </div>
+  </section>
+
+  <!-- Main Portal Navigation Columns -->
+  <div class="container" style="max-width: 1200px;">
+    <div class="portal-section-grid">
+      <!-- Left Column: Candidate Examination Suite -->
+      <div>
+        <div class="flex-between" style="margin-bottom: 1rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff;">Candidate Portal</h2>
+          <span class="text-muted" style="font-size: 0.8rem;">Test Taker Environment</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Card 1: Setup Wizard -->
+          <a href="candidate/index.html" class="portal-module-card">
+            <div class="card-icon" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">
+              🔧
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;">
+                Candidate Setup Wizard
+              </h3>
+              <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5;">
+                Three-step hardware verification pre-flight. Inspects camera devices for virtual webcam software (OBS, ManyCam), checks microphone audio levels with live VU meter, verifies screen capture, and grants exam access.
+              </p>
+            </div>
+            <div class="flex-between" style="margin-top: auto; font-size: 0.8rem; font-weight: 600; color: var(--accent-cyan);">
+              <span>Launch Pre-Flight Wizard</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <!-- Card 2: Interactive Exam Environment -->
+          <a href="candidate/exam.html" class="portal-module-card">
+            <div class="card-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+              📝
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;">
+                Secure Exam Environment
+              </h3>
+              <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5;">
+                Locked-down examination room enforcing fullscreen, monitoring window focus loss, blocking keyboard shortcuts/clipboard, tracking facial alignment and gaze anomalies, and auto-capturing base64 snapshots on incidents.
+              </p>
+            </div>
+            <div class="flex-between" style="margin-top: auto; font-size: 0.8rem; font-weight: 600; color: var(--accent-emerald);">
+              <span>Enter Active Exam Room</span>
+              <span>→</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Right Column: Proctor Administration Suite -->
+      <div>
+        <div class="flex-between" style="margin-bottom: 1rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff;">Proctor Administration Suite</h2>
+          <span class="text-muted" style="font-size: 0.8rem;">Control Room & Auditing</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Card 3: Live Control Room -->
+          <a href="admin/dashboard.html" class="portal-module-card">
+            <div class="card-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+              📺
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;">
+                Live Proctor Control Room
+              </h3>
+              <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5;">
+                Central command room with live candidate wall matrix, real-time volume VU meters, calculated risk badges, scrolling incident alert stream with audio alerts, and quick actions (Remote Lock, Warn, Terminate).
+              </p>
+            </div>
+            <div class="flex-between" style="margin-top: auto; font-size: 0.8rem; font-weight: 600; color: #f87171;">
+              <span>Open Live Dashboard</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <!-- Card 4: Session Review & Scrubber -->
+          <a href="admin/review.html" class="portal-module-card">
+            <div class="card-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+              📊
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;">
+                Session Incident Review & Scrubber
+              </h3>
+              <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5;">
+                Post-exam auditing environment with interactive chronological timeline scrubber, synchronized snapshot frame viewer, formula risk score breakdown, and JSON audit log export.
+              </p>
+            </div>
+            <div class="flex-between" style="margin-top: auto; font-size: 0.8rem; font-weight: 600; color: #fbbf24;">
+              <span>Open Incident Scrubber</span>
+              <span>→</span>
+            </div>
+          </a>
+
+          <!-- Card 5: Cheat Simulator Playground -->
+          <a href="admin/simulator.html" class="portal-module-card">
+            <div class="card-icon" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+              🧪
+            </div>
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 0.3rem;">
+                Cheat Simulation Playground
+              </h3>
+              <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5;">
+                Interactive playground to simulate all 13 violation vectors (Alt+Tab, multi-monitor, blacklisted processes, injected DLLs, virtual cameras, leave desk, whispers) with live socket payload inspector.
+              </p>
+            </div>
+            <div class="flex-between" style="margin-top: auto; font-size: 0.8rem; font-weight: 600; color: #a78bfa;">
+              <span>Launch Cheat Simulator</span>
+              <span>→</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Architecture & Detection Layers Section -->
+    <div class="glass-panel" style="margin: 3rem 0; padding: 2rem;">
+      <div class="flex-between" style="margin-bottom: 0.5rem;">
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: #fff;">
+          Multi-Layer Anti-Cheat Architecture
+        </h3>
+        <span class="mono text-cyan" style="font-size: 0.75rem;">RFC-COMPLIANT SCHEMA</span>
+      </div>
+      <p class="text-muted" style="font-size: 0.85rem; max-width: 800px;">
+        ProctorGuard operates a zero-trust multi-tier detection perimeter combining native operating system telemetry, browser sandbox lockdowns, real-time computer vision heuristics, and Web Audio RMS processing.
+      </p>
+
+      <div class="architecture-layers-grid">
+        <!-- Layer 1 -->
+        <div class="layer-card">
+          <span class="layer-num">LAYER 01 : HARDWARE INTEGRITY</span>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff;">Peripherals & Displays</div>
+          <p class="text-muted" style="font-size: 0.78rem;">
+            Virtual camera heuristic inspection (OBS, ManyCam), Screen Details API multi-monitor detection, and dynamic display topology switch monitoring.
+          </p>
+        </div>
+
+        <!-- Layer 2 -->
+        <div class="layer-card">
+          <span class="layer-num">LAYER 02 : OS SECURITY AGENT</span>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff;">Companion Agent Telemetry</div>
+          <p class="text-muted" style="font-size: 0.78rem;">
+            Desktop companion agent monitors background process blacklists (Cheat Engine, Discord, AnyDesk) and unverified DLL injection hooks.
+          </p>
+        </div>
+
+        <!-- Layer 3 -->
+        <div class="layer-card">
+          <span class="layer-num">LAYER 03 : BROWSER LOCKDOWN</span>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff;">Sandbox Enforcement</div>
+          <p class="text-muted" style="font-size: 0.78rem;">
+            Enforced fullscreen lockdown, visibilitychange / tab blur interception, right-click context menu blocking, and key combo interception (Alt+Tab, F12).
+          </p>
+        </div>
+
+        <!-- Layer 4 -->
+        <div class="layer-card">
+          <span class="layer-num">LAYER 04 : CV & AUDIO AI</span>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff;">Biometric Telemetry</div>
+          <p class="text-muted" style="font-size: 0.78rem;">
+            Canvas-based face tracking detecting zero-face (left desk), multiple faces (second person), and head pose deviation. Web Audio RMS whisper / speech detection.
+          </p>
+        </div>
+
+        <!-- Layer 5 -->
+        <div class="layer-card">
+          <span class="layer-num">LAYER 05 : SCORING ENGINE</span>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff;">Real-Time Risk Scoring</div>
+          <p class="text-muted" style="font-size: 0.78rem;">
+            Real-time scoring engine implementing <span class="mono text-cyan">Risk = min(100, Σ wi × Ni)</span>, 3-strike warning escalation, auto-lockdown, and WebRTC streaming.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer style="text-align: center; padding: 2rem 1.5rem; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--glass-border);">
+    <div>ProctorGuard Autonomous Security Suite • Built for High-Stakes Assessments</div>
+  </footer>
+
+  <script>
+    // Live Backend Health Ping
+    async function checkBackendHealth() {
+      const badge = document.getElementById('backend-health-badge');
+      try {
+        const start = performance.now();
+        const res = await fetch('/api/health');
+        const latency = Math.round(performance.now() - start);
+
+        if (res.ok) {
+          const data = await res.json();
+          badge.innerHTML = `<span class="pulse-dot"></span> System Healthy (${latency}ms)`;
+          badge.style.color = '#10b981';
+        } else {
+          badge.innerHTML = '<span class="pulse-dot" style="background:#ef4444;"></span> Backend Error';
+          badge.style.color = '#ef4444';
+        }
+      } catch (err) {
+        badge.innerHTML = '<span class="pulse-dot" style="background:#f59e0b;"></span> Backend Connecting...';
+        badge.style.color = '#f59e0b';
+      }
+    }
+
+    checkBackendHealth();
+    setInterval(checkBackendHealth, 15000);
+  </script>
+</body>
+</html>
