@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# ProctorGuard SQLite database & runtime artifacts
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm
+*.db
+gemini_key.txt
+session_data/
+recordings/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Environment & secrets
+.env
+.env.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
