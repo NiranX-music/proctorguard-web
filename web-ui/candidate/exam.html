@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Active Examination Session | ProctorGuard Secure Environment</title>
+  <link rel="stylesheet" href="../static/css/proctor.css">
+  <style>
+    /* Exam Specific Enhancements */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-x: hidden;
+    }
+
+    .exam-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1.75rem;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--glass-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .exam-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .timer-display {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .timer-display.timer-warning {
+      color: var(--severity-critical);
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.4);
+      animation: pulse-glow 1.2s infinite;
+    }
+
+    .exam-container {
+      max-width: 1480px;
+      margin: 1.25rem auto;
+      padding: 0 1.25rem;
+    }
+
+    .question-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      min-height: 480px;
+    }
+
+    .question-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .mcq-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .mcq-option:hover {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .mcq-option.selected {
+      background: rgba(6, 182, 212, 0.12);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.2);
+    }
+
+    .mcq-radio-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .mcq-option.selected .mcq-radio-indicator {
+      border-color: var(--accent-cyan);
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    .mcq-option.selected .mcq-radio-indicator::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #000;
+    }
+
+    .proctor-pip-tile {
+      width: 260px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75);
+    }
+
+    .proctor-pip-video-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      overflow: hidden;
+    }
+
+    .proctor-pip-video-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .face-bounding-box {
+      position: absolute;
+      top: 15%;
+      left: 25%;
+      width: 50%;
+      height: 60%;
+      border: 2px dashed rgba(16, 185, 129, 0.65);
+      border-radius: 8px;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .face-bounding-box.face-warning {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.12);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    }
+
+    .face-status-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      color: #34d399;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .face-status-badge.status-alert {
+      color: #f87171;
+    }
+
+    .simulation-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 0.5rem 0.6rem;
+      background: rgba(10, 15, 26, 0.95);
+      border-top: 1px solid var(--glass-border);
+    }
+
+    .simulation-btn {
+      padding: 0.3rem;
+      font-size: 0.68rem;
+      border-radius: 4px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--glass-border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .simulation-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: #fff;
+      border-color: var(--accent-cyan);
+    }
+
+    /* Modal styling */
+    .warning-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      padding: 1.5rem;
+      animation: modal-enter 0.25s ease-out;
+    }
+
+    .warning-modal-card {
+      max-width: 520px;
+      width: 100%;
+      background: #0f172a;
+      border: 2px solid var(--severity-high);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 0 35px var(--severity-high-glow);
+    }
+
+    .toast-unlock {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #065f46;
+      border: 1px solid #10b981;
+      color: #d1fae5;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+      animation: banner-drop 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Examination Navigation -->
+  <header class="exam-header">
+    <div class="flex-gap-2">
+      <div class="proctor-logo-icon">🛡️</div>
+      <div>
+        <div style="font-weight: 700; font-size: 1rem; color: #fff;">CS402: Distributed Systems & Security</div>
+        <div class="text-muted" style="font-size: 0.75rem;" id="header-session-info">Session: <span class="mono" id="disp-session-id">default</span> | Candidate: <span id="disp-candidate-name">Candidate</span> (<span class="mono" id="disp-candidate-id">cand-01</span>)</div>
+      </div>
+    </div>
+
+    <div class="exam-meta-group">
+      <!-- Gemini AI Status & Configuration Badge -->
+      <button class="btn btn-secondary btn-sm" id="btn-open-gemini-config" style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 4px 10px; border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.12); color: #d8b4fe;" title="Configure Google Gemini AI Live Audio Monitoring">
+        <span>🤖</span>
+        <span id="gemini-status-badge">Gemini AI Active</span>
+      </button>
+
+      <div class="timer-display" id="exam-timer">
+        <span>⏱️</span>
+        <span id="timer-text">45:00</span>
+      </div>
+
+      <span class="badge-live-pulse" id="proctor-conn-badge">
+        <span class="pulse-dot"></span> Proctor Active
+      </span>
+
+      <button class="btn btn-primary btn-sm" id="btn-submit-exam">
+        Submit Exam
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Examination Environment -->
+  <div class="exam-container">
+    <div class="exam-layout">
+      <!-- Left: Question Palette & Telemetry Status -->
+      <aside class="exam-nav-sidebar">
+        <!-- Question Palette Card -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div class="flex-between" style="margin-bottom: 1rem;">
+            <div style="font-weight: 700; font-size: 0.95rem;">Question Palette</div>
+            <span class="text-muted" style="font-size: 0.75rem;" id="answered-counter">0 / 8 Answered</span>
+          </div>
+
+          <div class="question-palette" id="question-palette-grid">
+            <!-- Rendered via JS -->
+          </div>
+
+          <!-- Legend -->
+          <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; color: var(--text-secondary);">
+            <div class="flex-gap-1">
+              <span style="width: 12px; height: 12px; border-radius: 3px; background: rgba(6, 182, 212, 0.2); border: 1px solid var(--accent-cyan);"></span>
+              <span>Current Question</span>
+            </div>
+            <div class="flex-gap-1">
+              <span style="width: 12px; height: 12px; border-radius: 3px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981;"></span>
+              <span>Answered</span>
+            </div>
+            <div class="flex-gap-1">
+              <span style="width: 12px; height: 12px; border-radius: 3px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b;"></span>
+              <span>Marked for Review</span>
+            </div>
+            <div class="flex-gap-1">
+              <span style="width: 12px; height: 12px; border-radius: 3px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></span>
+              <span>Unanswered</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry & Security Card -->
+        <div class="glass-panel" style="padding: 1.2rem;">
+          <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">
+            Sandbox Integrity
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.8rem;">
+            <div class="flex-between">
+              <span class="text-muted">Fullscreen Lockdown:</span>
+              <span class="text-emerald" id="status-fullscreen">Compulsory</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Extension Blocker:</span>
+              <span class="text-emerald" id="status-extension">Active (0 Injected)</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Gemini AI Auditor:</span>
+              <span class="text-emerald" id="status-ai-auditor">Active Listening</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Audio Telemetry:</span>
+              <span class="text-emerald" id="status-audio">Live VU Active</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Face & Gaze Tracking:</span>
+              <span class="text-emerald" id="status-face">Aligned</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Clipboard & Shortcuts:</span>
+              <span class="text-emerald">Restricted</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Warning Strikes:</span>
+              <span style="font-weight: 700;" class="mono" id="status-warning-strikes">0 / 3</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right: Main Question Workspace -->
+      <main>
+        <div class="question-card" id="question-card-container">
+          <!-- Question Header -->
+          <div class="flex-between">
+            <div class="flex-gap-2">
+              <span class="question-badge" id="q-badge-type">Multiple Choice</span>
+              <span style="font-size: 0.85rem; color: var(--text-muted);" id="q-points">Weight: 10 Points</span>
+            </div>
+            <label class="custom-checkbox-container" style="font-size: 0.82rem;">
+              <input type="checkbox" id="check-mark-review">
+              <span>Mark for Review</span>
+            </label>
+          </div>
+
+          <!-- Question Content -->
+          <div>
+            <h2 style="font-size: 1.2rem; font-weight: 600; line-height: 1.5; color: #fff; margin-bottom: 1.25rem;" id="q-title">
+              Loading question...
+            </h2>
+            <div id="q-body-container">
+              <!-- Rendered options or code input -->
+            </div>
+          </div>
+
+          <!-- Question Footer / Actions -->
+          <div class="flex-between" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+            <button class="btn btn-secondary" id="btn-prev-question" disabled>
+              ← Previous
+            </button>
+            <div class="flex-gap-2">
+              <button class="btn btn-secondary" id="btn-clear-answer">
+                Clear Response
+              </button>
+              <button class="btn btn-primary" id="btn-next-question">
+                Save & Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Picture-in-Picture Candidate Telemetry Tile -->
+  <div class="proctor-pip-tile" id="proctor-pip">
+    <div class="proctor-pip-header">
+      <div class="flex-gap-1">
+        <span class="pulse-dot" style="background:#10b981;"></span>
+        <span>PROCTOR TELEMETRY</span>
+      </div>
+      <span class="mono" style="font-size: 0.65rem;" id="pip-live-indicator">LIVE</span>
+    </div>
+
+    <div class="proctor-pip-video-wrap">
+      <video id="pip-webcam" autoplay playsinline muted></video>
+      <div class="face-bounding-box" id="pip-face-box"></div>
+      <div class="face-status-badge" id="pip-face-badge">
+        <span>●</span> <span id="pip-face-text">1 Face Detected</span>
+      </div>
+    </div>
+
+    <div class="proctor-pip-body">
+      <!-- Real-time VU volume meter -->
+      <div class="vu-meter-container">
+        <div class="vu-meter-track">
+          <div class="vu-meter-bar" id="pip-vu-bar"></div>
+        </div>
+        <div class="vu-meter-label" id="pip-vu-label">0%</div>
+      </div>
+    </div>
+
+    <!-- Quick Violation Testing & Simulation Toolbar -->
+    <div class="simulation-controls">
+      <button class="simulation-btn" id="sim-away" title="Simulate Candidate Looking Away">Look Away</button>
+      <button class="simulation-btn" id="sim-noface" title="Simulate Candidate Left Desk">Leave Desk</button>
+      <button class="simulation-btn" id="sim-multiface" title="Simulate Second Person in Frame">2nd Face</button>
+      <button class="simulation-btn" id="sim-noise" style="background: rgba(168,85,247,0.25); border-color: #a855f7; color: #d8b4fe;" title="Simulate Noise Spike to Test Gemini AI Explanation Flow">🎙️ Test Sound AI</button>
+      <button class="simulation-btn" id="sim-ext" style="background: rgba(239,68,68,0.25); border-color: #ef4444; color: #fda4af;" title="Simulate Extension Injection">🚫 Test Extension</button>
+    </div>
+  </div>
+
+  <!-- Hidden Working Canvas for Frame Analysis & Snapshot Capture -->
+  <canvas id="analysis-canvas" width="640" height="480" style="display: none;"></canvas>
+
+  <!-- Warning Modal (Server WARN command) -->
+  <div class="warning-modal-backdrop" id="warning-modal" style="display: none;">
+    <div class="warning-modal-card">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">⚠️</div>
+      <h3 style="font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem;" id="warn-modal-title">
+        Proctor Warning Strike <span id="warn-strike-num">1</span> of 3
+      </h3>
+      <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.25rem;" id="warn-modal-desc">
+        A security policy violation was detected by the real-time proctor system.
+      </p>
+      <div class="lockdown-reason-box" style="margin-bottom: 1.5rem;" id="warn-modal-reason">
+        Policy Violation Detected
+      </div>
+      <button class="btn btn-warning" style="width: 100%;" id="btn-ack-warning">
+        I Acknowledge and Will Comply
+      </button>
+    </div>
+  </div>
+
+  <!-- Lockdown Screen (Server LOCK command) -->
+  <div class="lockdown-overlay" id="lockdown-screen" style="display: none;">
+    <div class="lockdown-card">
+      <div class="lockdown-icon">🔒</div>
+      <h2 class="lockdown-title">EXAMINATION INTERFACE LOCKED</h2>
+      <p class="lockdown-subtitle">
+        Your test environment has been suspended due to security violations or proctor action. Awaiting manual review and remote authorization.
+      </p>
+      <div class="lockdown-reason-box" id="lockdown-reason-text">
+        Reason: Maximum permitted warning strikes exceeded.
+      </div>
+      <div style="display: flex; gap: 0.6rem; align-items: center; color: var(--text-muted); font-size: 0.85rem;">
+        <span class="pulse-dot" style="background: #ef4444;"></span>
+        <span>Live channel open. Please remain seated and await proctor instruction.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Termination Screen (Server TERMINATE command) -->
+  <div class="lockdown-overlay" id="termination-screen" style="display: none; z-index: 1000000; background: #020617;">
+    <div class="lockdown-card" style="border-color: #ef4444; max-width: 640px;">
+      <div class="lockdown-icon" style="background: rgba(239,68,68,0.25);">⛔</div>
+      <h2 class="lockdown-title" style="color: #ef4444;">EXAMINATION TERMINATED</h2>
+      <p class="lockdown-subtitle">
+        This candidate examination session has been definitively cancelled by the proctoring authority due to unresolvable academic integrity violations.
+      </p>
+      <div class="lockdown-reason-box" id="termination-reason-text">
+        Terminated by Proctor Administrator.
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;">
+        Incident audit records, audio transcripts, and snapshot frames have been compiled and archived for formal review.
+      </p>
+      <a href="../index.html" class="btn btn-secondary" style="margin-top: 1rem;">
+        Exit to Portal
+      </a>
+    </div>
+  </div>
+
+  <!-- Submission Confirmation Modal -->
+  <div class="warning-modal-backdrop" id="submit-confirm-modal" style="display: none;">
+    <div class="warning-modal-card" style="border-color: var(--accent-cyan); box-shadow: 0 0 35px rgba(6,182,212,0.3);">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📋</div>
+      <h3 style="font-size: 1.35rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">Submit Final Examination?</h3>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        Are you sure you want to finish your exam? Once submitted, your answers will be finalized.
+      </p>
+      <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1rem; text-align: left; font-size: 0.85rem;">
+        <div class="flex-between" style="margin-bottom: 0.4rem;">
+          <span class="text-muted">Total Questions:</span>
+          <span style="font-weight: 700;">8</span>
+        </div>
+        <div class="flex-between" style="margin-bottom: 0.4rem;">
+          <span class="text-muted">Answered:</span>
+          <span class="text-emerald" style="font-weight: 700;" id="modal-answered-count">0</span>
+        </div>
+        <div class="flex-between" style="margin-bottom: 0.4rem;">
+          <span class="text-muted">Unanswered:</span>
+          <span class="text-red" style="font-weight: 700;" id="modal-unanswered-count">8</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-muted">Marked for Review:</span>
+          <span class="text-amber" style="font-weight: 700;" id="modal-marked-count">0</span>
+        </div>
+      </div>
+      <div class="flex-gap-2">
+        <button class="btn btn-secondary" style="flex: 1;" id="btn-cancel-submit">Return to Exam</button>
+        <button class="btn btn-primary" style="flex: 1;" id="btn-confirm-final-submit">Confirm Submission</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compulsory Fullscreen Gate (Initial Start Modal) -->
+  <div class="warning-modal-backdrop" id="fullscreen-gate" style="display: flex; z-index: 100000;">
+    <div class="warning-modal-card" style="border-color: var(--accent-cyan); max-width: 600px; box-shadow: 0 0 40px rgba(6, 182, 212, 0.4);">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">🖥️</div>
+      <h2 style="font-size: 1.5rem; font-weight: 800; color: #fff; margin-bottom: 0.6rem;">Compulsory Fullscreen Mode Required</h2>
+      <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.25rem;">
+        In accordance with ProctorGuard academic integrity protocol, this examination enforces continuous, mandatory fullscreen lockdown. Leaving fullscreen, pressing Escape, or switching applications will immediately pause the examination, freeze the timer, and log a critical security violation.
+      </p>
+      <div class="glass-panel" style="padding: 1rem; margin-bottom: 1.5rem; text-align: left; font-size: 0.82rem; color: #94a3b8; display: flex; flex-direction: column; gap: 0.5rem;">
+        <div>🔒 <strong>Enforced Restrictions:</strong> Fullscreen lock, blocked Alt+Tab, blocked DevTools, blocked copy/paste.</div>
+        <div>🤖 <strong>Gemini AI Audio Auditor:</strong> Background sounds are monitored; explanations are reviewed in real-time.</div>
+        <div>🚫 <strong>Extension Protection:</strong> Injected scripts and browser extensions are automatically detected and blocked.</div>
+      </div>
+      <button class="btn btn-primary" id="btn-enter-fullscreen-gate" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700; letter-spacing: 0.03em;">
+        Enter Fullscreen Mode to Begin Exam
+      </button>
+    </div>
+  </div>
+
+  <!-- Fullscreen Violation Overlay (When fullscreen is exited during exam) -->
+  <div class="lockdown-overlay" id="fullscreen-violation-overlay" style="display: none; z-index: 99999; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px);">
+    <div class="lockdown-card" style="border-color: #ef4444; max-width: 580px; box-shadow: 0 0 45px rgba(239, 68, 68, 0.5);">
+      <div class="lockdown-icon" style="background: rgba(239, 68, 68, 0.2);">⚠️</div>
+      <h2 class="lockdown-title" style="color: #ef4444;">EXAMINATION PAUSED — FULLSCREEN VIOLATION</h2>
+      <p class="lockdown-subtitle" style="font-size: 0.95rem; line-height: 1.5;">
+        You have exited compulsory fullscreen mode or navigated away from the exam window. The timer is currently <strong>PAUSED</strong> and your responses are temporarily locked.
+      </p>
+      <div class="lockdown-reason-box" id="fullscreen-violation-meta" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); margin: 1rem 0;">
+        Violation: FULLSCREEN_EXIT registered. Incident frame and telemetry archived.
+      </div>
+      <button class="btn btn-primary" id="btn-reenter-fullscreen" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
+        Re-Enter Fullscreen to Resume Exam
+      </button>
+    </div>
+  </div>
+
+  <!-- Browser Extension Violation Overlay -->
+  <div class="lockdown-overlay" id="extension-violation-overlay" style="display: none; z-index: 99999; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(16px);">
+    <div class="lockdown-card" style="border-color: #f59e0b; max-width: 600px; box-shadow: 0 0 45px rgba(245, 158, 11, 0.4);">
+      <div class="lockdown-icon" style="background: rgba(245, 158, 11, 0.2);">🚫</div>
+      <h2 class="lockdown-title" style="color: #f59e0b;">UNAUTHORIZED BROWSER EXTENSION DETECTED</h2>
+      <p class="lockdown-subtitle" style="font-size: 0.95rem; line-height: 1.5;">
+        The exam integrity sandbox detected injected DOM scripts or browser extension attributes in this session. Browser extensions (AI assistants, translators, grammar helpers) are strictly prohibited during the exam.
+      </p>
+      <div class="lockdown-reason-box" id="extension-detail-box" style="color: #fde68a; border-color: rgba(245, 158, 11, 0.4); margin: 1rem 0; font-family: var(--font-mono); font-size: 0.8rem; word-break: break-all;">
+        Detected extension signature: Injected elements found.
+      </div>
+      <div style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 1.25rem;">
+        Tip: Disable your browser extensions in <code>chrome://extensions</code>, open in Incognito mode with extensions disabled, or run the companion desktop app.
+      </div>
+      <button class="btn btn-secondary" id="btn-rescan-extensions" style="width: 100%; padding: 0.8rem; font-weight: 700;">
+        I Have Disabled Extensions / Re-Scan
+      </button>
+    </div>
+  </div>
+
+  <!-- Gemini AI Sound Explanation Modal -->
+  <div class="warning-modal-backdrop" id="ai-audio-modal" style="display: none; z-index: 100000;">
+    <div class="warning-modal-card" style="border-color: #a855f7; max-width: 580px; box-shadow: 0 0 45px rgba(168, 85, 247, 0.4); text-align: left;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+        <span style="font-size: 2rem;">🎙️</span>
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0;">Audio Anomaly Detected</h3>
+          <span style="font-size: 0.78rem; color: #d8b4fe;">Gemini AI Real-time Audio Verification</span>
+        </div>
+      </div>
+
+      <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; margin-bottom: 1rem;">
+        A sudden acoustic spike (<span id="ai-audio-db" style="font-weight: 700; color: #fbbf24;">48 dB</span>) was detected by your microphone. Please provide an honest explanation for the noise. Google Gemini AI will listen to the audio snippet and evaluate your reason to decide if the warning strike should be waived.
+      </p>
+
+      <!-- Audio snippet player -->
+      <div class="glass-panel" style="padding: 0.85rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 12px; background: rgba(168,85,247,0.08); border-color: rgba(168,85,247,0.3);">
+        <audio id="ai-audio-player" controls style="width: 100%; height: 36px;"></audio>
+      </div>
+
+      <!-- Explanation input -->
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <label for="ai-audio-explanation-input" class="form-label" style="font-size: 0.85rem; color: #e2e8f0;">
+          Your Explanation for the Sound:
+        </label>
+        <textarea id="ai-audio-explanation-input" class="form-input" rows="3" placeholder="e.g., 'I coughed and cleared my throat', 'A door closed in the hallway', 'My chair squeaked when shifting'..." style="resize: vertical; font-size: 0.9rem;"></textarea>
+      </div>
+
+      <!-- AI Evaluation Result Box (hidden initially) -->
+      <div id="ai-verdict-box" style="display: none; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem;" id="ai-verdict-title"></div>
+        <div style="font-size: 0.85rem; margin-top: 0.4rem; color: #cbd5e1;" id="ai-verdict-feedback"></div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.4rem; font-style: italic;" id="ai-verdict-meta"></div>
+      </div>
+
+      <div class="flex-gap-2">
+        <button class="btn btn-secondary" style="flex: 1;" id="btn-cancel-audio-explanation">Dismiss (Keep Strike)</button>
+        <button class="btn btn-primary" style="flex: 2; background: #9333ea; border-color: #a855f7;" id="btn-submit-audio-explanation">
+          <span>🤖 Submit to Gemini AI</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Gemini AI Configuration Modal -->
+  <div class="warning-modal-backdrop" id="gemini-config-modal" style="display: none; z-index: 100000;">
+    <div class="warning-modal-card" style="border-color: #a855f7; max-width: 520px; box-shadow: 0 0 35px rgba(168, 85, 247, 0.35); text-align: left;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.6rem;">🤖</span>
+          <h3 style="font-size: 1.2rem; font-weight: 700; color: #fff; margin: 0;">Gemini AI Proctor Settings</h3>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btn-close-gemini-config" style="padding: 2px 8px;">✕</button>
+      </div>
+
+      <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1rem;">
+        Configure your Google Gemini API Key for live AI sound anomaly verification, multi-voice detection, and candidate explanation validation.
+      </p>
+
+      <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+        <span class="text-muted">Current Status:</span>
+        <span id="gemini-modal-status-pill" class="badge-active">Checking...</span>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <label for="gemini-api-key-input" class="form-label" style="font-size: 0.85rem;">Google Gemini API Key:</label>
+        <input type="password" id="gemini-api-key-input" class="form-input" placeholder="AIzaSy..." style="font-family: var(--font-mono); font-size: 0.85rem;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">Key is used by backend to invoke Gemini 2.5 Flash for audio classification.</span>
+      </div>
+
+      <div id="gemini-save-msg" style="display: none; padding: 0.6rem; border-radius: 4px; font-size: 0.8rem; margin-bottom: 1rem;"></div>
+
+      <div class="flex-gap-2">
+        <button class="btn btn-secondary" style="flex: 1;" id="btn-cancel-gemini-config">Close</button>
+        <button class="btn btn-primary" style="flex: 1.5; background: #9333ea; border-color: #a855f7;" id="btn-save-gemini-config">
+          Save & Verify Key
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../static/js/proctor_socket.js"></script>
+  <script src="../static/js/camera_check.js"></script>
+  <script src="../static/js/audio_monitor.js"></script>
+  <script src="../static/js/anti_cheat.js"></script>
+
+  <script>
+    /**
+     * Examination Session Controller
+     */
+    // 1. Session Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id') || urlParams.get('sessionId') || sessionStorage.getItem('proctor_session_id') || 'default';
+    const candidateId = urlParams.get('candidate_id') || urlParams.get('candidateId') || sessionStorage.getItem('proctor_candidate_id') || 'cand_exam_' + Math.random().toString(36).substring(2, 7);
+    const candidateName = urlParams.get('name') || urlParams.get('candidateName') || sessionStorage.getItem('proctor_candidate_name') || 'Alex Rivera';
+
+    document.getElementById('disp-session-id').textContent = sessionId;
+    document.getElementById('disp-candidate-id').textContent = candidateId;
+    document.getElementById('disp-candidate-name').textContent = candidateName;
+
+    // 2. Exam Question Bank (8 Questions)
+    const EXAM_QUESTIONS = [
+      {
+        id: 1,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'Which concurrency construct prevents priority inversion in real-time operating systems?',
+        options: [
+          'Readers-Writer Lock with starvation avoidance',
+          'Priority Inheritance Protocol (PIP)',
+          'Peterson Algorithm for two-thread mutual exclusion',
+          'Compare-And-Swap (CAS) optimistic spinlock'
+        ],
+        correct: 1
+      },
+      {
+        id: 2,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'In the Raft Consensus Algorithm, what condition is required before a leader can commit a log entry from a previous term?',
+        options: [
+          'The entry must be replicated on all cluster nodes',
+          'The entry from the previous term must be re-signed by the follower majority',
+          'The leader must commit an entry from its current term by replicating it to a majority',
+          'The entry must have survived three consecutive election timeouts'
+        ],
+        correct: 2
+      },
+      {
+        id: 3,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'In a Consistent Hashing ring with N nodes and K virtual nodes per physical machine, what is the expected fraction of keys relocated when a new node joins?',
+        options: [
+          '1 / (N + 1)',
+          '1 / (K * N)',
+          'K / (N + 1)',
+          '(N - 1) / N'
+        ],
+        correct: 0
+      },
+      {
+        id: 4,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'Which property of Diffie-Hellman Ephemeral (DHE) key exchange ensures that compromise of the server long-term private key does not reveal past session contents?',
+        options: [
+          'Perfect Forward Secrecy (PFS)',
+          'Non-repudiation via RSA signatures',
+          'Homomorphic ciphertext malleability',
+          'Constant-time elliptic curve multiplication'
+        ],
+        correct: 0
+      },
+      {
+        id: 5,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'Under Brewer\'s CAP theorem, in the event of an unavoidable network partition (P), what trade-off must a distributed store make?',
+        options: [
+          'Sacrifice Partition Tolerance by disabling WAN links',
+          'Choose between Consistency (rejecting updates) or Availability (serving stale/divergent data)',
+          'Switch automatically to Byzantine Fault Tolerant consensus',
+          'Increase round-trip timeout to enforce instantaneous linearizability'
+        ],
+        correct: 1
+      },
+      {
+        id: 6,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'Which ANSI SQL isolation level prevents both Dirty Reads and Non-Repeatable Reads, but may still permit Phantom Reads under lock-based engines without predicate locks?',
+        options: [
+          'READ UNCOMMITTED',
+          'READ COMMITTED',
+          'REPEATABLE READ',
+          'SERIALIZABLE'
+        ],
+        correct: 2
+      },
+      {
+        id: 7,
+        type: 'mcq',
+        badge: 'Multiple Choice',
+        points: 10,
+        title: 'What fundamental cryptographic primitive allows a prover to convince a verifier that a statement is true without revealing witness details?',
+        options: [
+          'Merkle-Damgård hash extension',
+          'Zero-Knowledge Succinct Non-Interactive Argument of Knowledge (zk-SNARK)',
+          'Shamir\'s Secret Sharing threshold scheme',
+          'Bloom Filter probabilistic membership query'
+        ],
+        correct: 1
+      },
+      {
+        id: 8,
+        type: 'code',
+        badge: 'Code Implementation',
+        points: 30,
+        title: 'Implement a distributed sliding window rate limiter function in Python / Pseudocode that verifies whether a request from a given client should be allowed.',
+        placeholder: `class SlidingWindowRateLimiter:
+    def __init__(self, limit: int, window_seconds: float, redis_client=None):
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self.redis = redis_client
+
+    def allow_request(self, client_id: str) -> bool:
+        """
+        Determines if the request is permitted within the sliding window.
+        Returns True if permitted, False if rate limited.
+        """
+        # TODO: Implement sliding log / window counter algorithm
+        pass`
+      }
+    ];
+
+    // State
+    let currentQuestionIndex = 0;
+    const userAnswers = {}; // { qId: answerValue }
+    const markedQuestions = new Set();
+    let warningStrikes = 0;
+    const maxWarnings = 3;
+    let isExamLocked = false;
+    let isTerminated = false;
+    let userMediaStream = null;
+
+    // Face detection simulation state
+    let faceDetectionMode = 'ALIGNED'; // 'ALIGNED', 'LOOKING_AWAY', 'NO_FACE', 'MULTIPLE_FACES'
+    let lastFaceAlertTime = 0;
+
+    // DOM Elements
+    const qBadgeType = document.getElementById('q-badge-type');
+    const qPoints = document.getElementById('q-points');
+    const qTitle = document.getElementById('q-title');
+    const qBodyContainer = document.getElementById('q-body-container');
+    const checkMarkReview = document.getElementById('check-mark-review');
+    const btnPrev = document.getElementById('btn-prev-question');
+    const btnNext = document.getElementById('btn-next-question');
+    const btnClear = document.getElementById('btn-clear-answer');
+    const paletteGrid = document.getElementById('question-palette-grid');
+    const answeredCounter = document.getElementById('answered-counter');
+
+    const warningModal = document.getElementById('warning-modal');
+    const warnStrikeNum = document.getElementById('warn-strike-num');
+    const warnModalReason = document.getElementById('warn-modal-reason');
+    const warnModalDesc = document.getElementById('warn-modal-desc');
+    const btnAckWarning = document.getElementById('btn-ack-warning');
+
+    const lockdownScreen = document.getElementById('lockdown-screen');
+    const lockdownReasonText = document.getElementById('lockdown-reason-text');
+    const terminationScreen = document.getElementById('termination-screen');
+    const terminationReasonText = document.getElementById('termination-reason-text');
+
+    const pipWebcam = document.getElementById('pip-webcam');
+    const pipFaceBox = document.getElementById('pip-face-box');
+    const pipFaceBadge = document.getElementById('pip-face-badge');
+    const pipFaceText = document.getElementById('pip-face-text');
+    const pipVuBar = document.getElementById('pip-vu-bar');
+    const pipVuLabel = document.getElementById('pip-vu-label');
+    const analysisCanvas = document.getElementById('analysis-canvas');
+    const analysisCtx = analysisCanvas.getContext('2d');
+
+    const statusFullscreen = document.getElementById('status-fullscreen');
+    const statusFace = document.getElementById('status-face');
+    const statusWarningStrikes = document.getElementById('status-warning-strikes');
+    const proctorConnBadge = document.getElementById('proctor-conn-badge');
+
+    // 3. Initialize WebSocket Mesh & Anti-Cheat
+    const socket = new ProctorSocket({
+      role: 'candidate',
+      sessionId: sessionId,
+      candidateId: candidateId,
+      candidateName: candidateName,
+      onConnect: () => {
+        proctorConnBadge.innerHTML = '<span class="pulse-dot"></span> Proctor Connected';
+        proctorConnBadge.style.color = '#10b981';
+      },
+      onDisconnect: () => {
+        proctorConnBadge.innerHTML = '<span class="pulse-dot" style="background:#f59e0b;"></span> Reconnecting...';
+        proctorConnBadge.style.color = '#f59e0b';
+      },
+      onMessage: (msg) => {
+        handleServerMessage(msg);
+      }
+    });
+    socket.connect();
+
+    // Anti-Cheat Engine Instance
+    const antiCheat = new AntiCheat({
+      candidateId: candidateId,
+      candidateName: candidateName,
+      sessionId: sessionId,
+      webcamVideoElement: pipWebcam,
+      maxWarnings: maxWarnings,
+      socket: socket,
+      onViolation: (incident) => {
+        // Local violation recorded
+      },
+      onWarningUpdate: (count, limit, incident) => {
+        warningStrikes = count;
+        statusWarningStrikes.textContent = `${count} / ${limit}`;
+      },
+      onLockdown: (reason) => {
+        triggerLocalLockdown(reason);
+      }
+    });
+
+    // Helper: Capture snapshot frame with timestamp watermark
+    function captureSnapshotFrame() {
+      try {
+        if (pipWebcam && pipWebcam.readyState >= 2) {
+          analysisCanvas.width = 320;
+          analysisCanvas.height = 240;
+          analysisCtx.drawImage(pipWebcam, 0, 0, 320, 240);
+
+          // Watermark timestamp & candidate ID
+          analysisCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          analysisCtx.fillRect(0, 215, 320, 25);
+          analysisCtx.font = '10px monospace';
+          analysisCtx.fillStyle = '#38bdf8';
+          analysisCtx.fillText(`${candidateId} | ${new Date().toISOString()}`, 8, 232);
+
+          return analysisCanvas.toDataURL('image/jpeg', 0.65);
+        }
+      } catch (err) {
+        console.warn('Snapshot capture notice:', err);
+      }
+      return null;
+    }
+
+    // Helper: Report Incident to Server
+    function reportIncident(eventType, severity, message, extraMeta = {}) {
+      if (isTerminated) return;
+      const snapshot = captureSnapshotFrame();
+      const payload = {
+        sessionId: sessionId,
+        candidateId: candidateId,
+        timestamp: new Date().toISOString(),
+        severity: severity,
+        eventType: eventType,
+        metadata: {
+          message: message,
+          questionIndex: currentQuestionIndex + 1,
+          ...extraMeta
+        },
+        snapshotFrame: snapshot
+      };
+      socket.sendIncident(payload);
+    }
+
+    // 4. Handle Incoming Commands from Server (WARN, LOCK, UNLOCK, TERMINATE)
+    function handleServerMessage(msg) {
+      if (!msg) return;
+
+      // Command message format
+      if (msg.type === 'command') {
+        const action = (msg.action || '').toUpperCase();
+
+        if (action === 'WARN') {
+          showWarningModal(msg.warningCount || (warningStrikes + 1), msg.message || 'Exam integrity violation detected.', msg.reason || msg.eventType);
+        } else if (action === 'LOCK') {
+          triggerServerLockdown(msg.reason || msg.message || 'Exam locked by proctor administrator.');
+        } else if (action === 'UNLOCK') {
+          removeServerLockdown();
+        } else if (action === 'TERMINATE') {
+          triggerTermination(msg.reason || msg.message || 'Session terminated by proctor administrator.');
+        }
+      }
+
+      // Initial status sync on connection
+      if (msg.type === 'sync_status') {
+        if (msg.status === 'LOCKED') {
+          triggerServerLockdown('Exam is currently locked.');
+        } else if (msg.status === 'TERMINATED') {
+          triggerTermination('Exam has been terminated.');
+        }
+        if (msg.warningCount !== undefined) {
+          warningStrikes = msg.warningCount;
+          statusWarningStrikes.textContent = `${warningStrikes} / ${msg.warningLimit || 3}`;
+        }
+      }
+    }
+
+    function showWarningModal(strike, message, reason) {
+      warningStrikes = strike;
+      statusWarningStrikes.textContent = `${warningStrikes} / ${maxWarnings}`;
+      warnStrikeNum.textContent = strike;
+      warnModalDesc.textContent = message;
+      warnModalReason.textContent = reason ? `Incident: ${reason}` : 'Security Violation';
+      warningModal.style.display = 'flex';
+    }
+
+    btnAckWarning.addEventListener('click', () => {
+      warningModal.style.display = 'none';
+      // Re-request fullscreen on acknowledgement if needed
+      antiCheat.requestFullscreen().catch(() => {});
+    });
+
+    function triggerLocalLockdown(reason) {
+      isExamLocked = true;
+      lockdownReasonText.textContent = `Reason: ${reason}`;
+      lockdownScreen.style.display = 'flex';
+    }
+
+    function triggerServerLockdown(reason) {
+      isExamLocked = true;
+      lockdownReasonText.textContent = `Reason: ${reason}`;
+      lockdownScreen.style.display = 'flex';
+      warningModal.style.display = 'none';
+    }
+
+    function removeServerLockdown() {
+      isExamLocked = false;
+      lockdownScreen.style.display = 'none';
+
+      // Show toast
+      const toast = document.createElement('div');
+      toast.className = 'toast-unlock';
+      toast.innerHTML = '<span>🔓</span> <span>Exam Unlocked: You may resume your examination.</span>';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    function triggerTermination(reason) {
+      isTerminated = true;
+      terminationReasonText.textContent = `Reason: ${reason}`;
+      terminationScreen.style.display = 'flex';
+      lockdownScreen.style.display = 'none';
+      warningModal.style.display = 'none';
+
+      if (antiCheat) antiCheat.destroy();
+      if (userMediaStream) userMediaStream.getTracks().forEach(t => t.stop());
+    }
+
+    // 5. Camera & Microphone Setup with Audio Monitor
+    let audioMonitor = null;
+    async function initializeMedia() {
+      try {
+        const stream = await CameraChecker.requestVerifiedStream({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          audio: true
+        });
+
+        userMediaStream = stream;
+        pipWebcam.srcObject = stream;
+
+        // Initialize Audio Monitor
+        audioMonitor = new AudioMonitor({
+          threshold: 32,
+          sustainedDurationMs: 1600,
+          vuBarElement: pipVuBar,
+          vuLabelElement: pipVuLabel,
+          onSuspiciousAudio: (incident) => {
+            reportIncident('SUSPICIOUS_AUDIO_LEVEL', 'MEDIUM', incident.message, {
+              volume: incident.volume,
+              durationMs: incident.durationMs
+            });
+            // Trigger AI Audio Anomaly Verification Flow
+            triggerAudioAnomalyReview(incident.volume, incident.message);
+          }
+        });
+        await audioMonitor.start(stream);
+        initAudioSnippetRecorder(stream);
+
+      } catch (err) {
+        console.warn('Camera/Mic initialization notice (simulated preview active):', err);
+        // Fallback: generate clean canvas mock stream so proctor always receives preview
+        startMockVideoPreview();
+      }
+    }
+
+    function startMockVideoPreview() {
+      let angle = 0;
+      setInterval(() => {
+        if (!userMediaStream && pipWebcam) {
+          analysisCanvas.width = 320;
+          analysisCanvas.height = 240;
+          analysisCtx.fillStyle = '#0f172a';
+          analysisCtx.fillRect(0, 0, 320, 240);
+
+          // Simulated head silhouette
+          analysisCtx.fillStyle = '#334155';
+          analysisCtx.beginPath();
+          analysisCtx.arc(160 + Math.sin(angle) * 5, 110, 45, 0, Math.PI * 2);
+          analysisCtx.fill();
+          analysisCtx.beginPath();
+          analysisCtx.ellipse(160 + Math.sin(angle) * 5, 200, 75, 45, 0, 0, Math.PI * 2);
+          analysisCtx.fill();
+
+          analysisCtx.fillStyle = '#94a3b8';
+          analysisCtx.font = '11px sans-serif';
+          analysisCtx.textAlign = 'center';
+          analysisCtx.fillText('Camera Feed Active', 160, 225);
+          angle += 0.05;
+        }
+      }, 100);
+    }
+
+    // 6. Canvas-Based Face & Gaze Tracking / Simulation Loop
+    setInterval(() => {
+      if (isExamLocked || isTerminated) return;
+
+      const now = Date.now();
+      const faceBox = document.getElementById('pip-face-box');
+
+      if (faceDetectionMode === 'NO_FACE') {
+        faceBox.classList.add('face-warning');
+        pipFaceBadge.classList.add('status-alert');
+        pipFaceText.textContent = '0 Faces Detected';
+        statusFace.textContent = 'Zero Face Flagged';
+        statusFace.className = 'text-red';
+
+        if (now - lastFaceAlertTime > 4000) {
+          lastFaceAlertTime = now;
+          reportIncident('ZERO_FACE_DETECTED', 'HIGH', 'Candidate left desk or face not detected in frame.');
+        }
+      } else if (faceDetectionMode === 'MULTIPLE_FACES') {
+        faceBox.classList.add('face-warning');
+        pipFaceBadge.classList.add('status-alert');
+        pipFaceText.textContent = '2 Faces Detected';
+        statusFace.textContent = 'Multiple Persons';
+        statusFace.className = 'text-red';
+
+        if (now - lastFaceAlertTime > 4000) {
+          lastFaceAlertTime = now;
+          reportIncident('MULTIPLE_FACES_DETECTED', 'HIGH', 'Multiple persons detected in camera frame.');
+        }
+      } else if (faceDetectionMode === 'LOOKING_AWAY') {
+        faceBox.classList.add('face-warning');
+        pipFaceBadge.classList.add('status-alert');
+        pipFaceText.textContent = 'Gaze Deviated';
+        statusFace.textContent = 'Looking Away';
+        statusFace.className = 'text-amber';
+
+        if (now - lastFaceAlertTime > 4000) {
+          lastFaceAlertTime = now;
+          reportIncident('HEAD_POSE_AWAY', 'HIGH', 'Candidate looking away from exam interface.');
+        }
+      } else {
+        // Normal ALIGNED
+        faceBox.classList.remove('face-warning');
+        pipFaceBadge.classList.remove('status-alert');
+        pipFaceText.textContent = '1 Face Detected';
+        statusFace.textContent = 'Aligned';
+        statusFace.className = 'text-emerald';
+      }
+    }, 1000);
+
+    // Simulation Toolbar Handlers
+    document.getElementById('sim-away').addEventListener('click', () => {
+      faceDetectionMode = (faceDetectionMode === 'LOOKING_AWAY') ? 'ALIGNED' : 'LOOKING_AWAY';
+      document.getElementById('sim-away').style.borderColor = faceDetectionMode === 'LOOKING_AWAY' ? '#f59e0b' : '';
+    });
+
+    document.getElementById('sim-noface').addEventListener('click', () => {
+      faceDetectionMode = (faceDetectionMode === 'NO_FACE') ? 'ALIGNED' : 'NO_FACE';
+      document.getElementById('sim-noface').style.borderColor = faceDetectionMode === 'NO_FACE' ? '#ef4444' : '';
+    });
+
+    document.getElementById('sim-multiface').addEventListener('click', () => {
+      faceDetectionMode = (faceDetectionMode === 'MULTIPLE_FACES') ? 'ALIGNED' : 'MULTIPLE_FACES';
+      document.getElementById('sim-multiface').style.borderColor = faceDetectionMode === 'MULTIPLE_FACES' ? '#ef4444' : '';
+    });
+
+    // 7. Fullscreen, Extension & Security Guard State
+    let hasStartedExam = false;
+    let isTimerPaused = false;
+    let mediaRecorder = null;
+    let recentAudioChunks = [];
+    let currentAnomalyAudioBase64 = '';
+    let currentAnomalyNoiseLevel = 45;
+
+    // --- Audio Snippet Recording & Synthesis ---
+    function initAudioSnippetRecorder(stream) {
+      try {
+        if (!stream || !stream.getAudioTracks().length) return;
+        const audioOnlyStream = new MediaStream(stream.getAudioTracks());
+        const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg', 'audio/mp4'];
+        let chosenMime = '';
+        for (const m of mimeTypes) {
+          if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) {
+            chosenMime = m;
+            break;
+          }
+        }
+        mediaRecorder = new MediaRecorder(audioOnlyStream, chosenMime ? { mimeType: chosenMime } : {});
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recentAudioChunks.push(e.data);
+            if (recentAudioChunks.length > 5) {
+              recentAudioChunks.shift();
+            }
+          }
+        };
+        mediaRecorder.start(1000);
+      } catch (err) {
+        console.warn('MediaRecorder audio buffer notice:', err);
+      }
+    }
+
+    // Helper: Synthesize short audible WAV tone if mic recording is empty or mock
+    function createSynthesizedWavBlob(durationSeconds = 2.0, freq = 440) {
+      const sampleRate = 16000;
+      const numSamples = Math.floor(sampleRate * durationSeconds);
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(buffer);
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+
+      for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        // Mild ambient rumble + harmonic buzz simulating noise
+        const sample = Math.sin(2 * Math.PI * freq * t) * 0.25 + (Math.random() - 0.5) * 0.15;
+        const intSample = Math.max(-32768, Math.min(32767, Math.floor(sample * 32767)));
+        view.setInt16(44 + i * 2, intSample, true);
+      }
+
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    async function getAudioSnippetBlob() {
+      if (recentAudioChunks.length > 0) {
+        return new Blob(recentAudioChunks, { type: 'audio/webm' });
+      }
+      return createSynthesizedWavBlob(2.5, 380);
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // Triggered when an audio anomaly occurs
+    async function triggerAudioAnomalyReview(volume = 48, reason = 'Acoustic spike detected') {
+      if (isTerminated) return;
+
+      currentAnomalyNoiseLevel = volume;
+      document.getElementById('ai-audio-db').textContent = `${volume} dB`;
+      document.getElementById('ai-audio-explanation-input').value = '';
+      
+      const verdictBox = document.getElementById('ai-verdict-box');
+      verdictBox.style.display = 'none';
+
+      const submitBtn = document.getElementById('btn-submit-audio-explanation');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>🤖 Submit to Gemini AI</span>';
+
+      try {
+        const audioBlob = await getAudioSnippetBlob();
+        currentAnomalyAudioBase64 = await blobToBase64(audioBlob);
+        const player = document.getElementById('ai-audio-player');
+        player.src = URL.createObjectURL(audioBlob);
+      } catch (err) {
+        console.warn('Audio snippet preparation notice:', err);
+      }
+
+      document.getElementById('ai-audio-modal').style.display = 'flex';
+    }
+
+    // Submit explanation to Gemini AI
+    document.getElementById('btn-submit-audio-explanation').addEventListener('click', async () => {
+      const explanationInput = document.getElementById('ai-audio-explanation-input');
+      const explanation = (explanationInput.value || '').trim();
+      const submitBtn = document.getElementById('btn-submit-audio-explanation');
+      const verdictBox = document.getElementById('ai-verdict-box');
+      const verdictTitle = document.getElementById('ai-verdict-title');
+      const verdictFeedback = document.getElementById('ai-verdict-feedback');
+      const verdictMeta = document.getElementById('ai-verdict-meta');
+
+      if (!explanation) {
+        alert('Please enter a brief explanation for the background noise.');
+        explanationInput.focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="pulse-dot" style="background:#fff;"></span> <span>Gemini AI is analyzing sound & explanation...</span>';
+
+      try {
+        const resp = await fetch('/api/ai/verify-audio-explanation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionId,
+            candidateId: candidateId,
+            explanation: explanation,
+            audioBase64: currentAnomalyAudioBase64,
+            mimeType: currentAnomalyAudioBase64.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/webm',
+            noiseLevel: currentAnomalyNoiseLevel
+          })
+        });
+
+        const result = await resp.json();
+        verdictBox.style.display = 'block';
+
+        if (result.verdict === 'ACCEPTED') {
+          verdictBox.style.background = 'rgba(16, 185, 129, 0.15)';
+          verdictBox.style.border = '1px solid #10b981';
+          verdictTitle.style.color = '#34d399';
+          verdictTitle.innerHTML = '<span>✅ Explanation Accepted by Gemini AI</span> <span style="font-size:0.75rem; background:#065f46; color:#d1fae5; padding:2px 8px; border-radius:9999px;">Strike Waived</span>';
+          verdictFeedback.textContent = result.candidateFeedback || 'Your explanation is consistent with the captured acoustics. No integrity strike was assessed.';
+          verdictMeta.textContent = `Acoustic Class: ${result.soundClassification || 'Ambient noise'} (${Math.round((result.confidence || 0.9) * 100)}% confidence). ${result.analysis || ''}`;
+
+          // Waive strike if one was logged
+          if (warningStrikes > 0) {
+            warningStrikes = Math.max(0, warningStrikes - 1);
+            statusWarningStrikes.textContent = `${warningStrikes} / ${maxWarnings}`;
+          }
+
+          reportIncident('AI_AUDIO_EXPLANATION_ACCEPTED', 'LOW', 'Gemini AI reviewed acoustic snippet and verified explanation.', {
+            explanation: explanation,
+            aiResult: result
+          });
+
+          // Auto-close modal after 2.8s
+          setTimeout(() => {
+            document.getElementById('ai-audio-modal').style.display = 'none';
+          }, 2800);
+
+        } else if (result.verdict === 'REJECTED') {
+          verdictBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          verdictBox.style.border = '1px solid #ef4444';
+          verdictTitle.style.color = '#f87171';
+          verdictTitle.innerHTML = '<span>❌ Explanation Rejected by Gemini AI</span> <span style="font-size:0.75rem; background:#991b1b; color:#fecaca; padding:2px 8px; border-radius:9999px;">Strike Maintained</span>';
+          verdictFeedback.textContent = result.candidateFeedback || 'The acoustic analysis contradicts your explanation or suggests secondary voice communication.';
+          verdictMeta.textContent = `Acoustic Class: ${result.soundClassification || 'Suspicious speech'}. ${result.analysis || ''}`;
+
+          reportIncident('AI_AUDIO_EXPLANATION_REJECTED', 'HIGH', 'Gemini AI rejected candidate audio explanation.', {
+            explanation: explanation,
+            aiResult: result
+          });
+
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Dismiss Explanation</span>';
+          submitBtn.onclick = () => {
+            document.getElementById('ai-audio-modal').style.display = 'none';
+          };
+
+        } else {
+          // PENDING_PROCTOR_REVIEW (e.g. Missing API key)
+          verdictBox.style.background = 'rgba(245, 158, 11, 0.15)';
+          verdictBox.style.border = '1px solid #f59e0b';
+          verdictTitle.style.color = '#fbbf24';
+          verdictTitle.innerHTML = '<span>⚠️ Logged for Human Proctor Review</span>';
+          verdictFeedback.textContent = result.candidateFeedback || 'Your explanation has been recorded and queued for proctor review.';
+          verdictMeta.textContent = result.analysis || 'Live proctor will inspect the recorded audio snippet.';
+
+          setTimeout(() => {
+            document.getElementById('ai-audio-modal').style.display = 'none';
+          }, 3200);
+        }
+
+      } catch (err) {
+        console.error('Audio explanation submission failed:', err);
+        verdictBox.style.display = 'block';
+        verdictBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        verdictBox.style.border = '1px solid #ef4444';
+        verdictTitle.style.color = '#f87171';
+        verdictTitle.textContent = 'Network Error Submitting Explanation';
+        verdictFeedback.textContent = 'Could not reach proctor backend. Your explanation was logged locally.';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>Close</span>';
+        submitBtn.onclick = () => {
+          document.getElementById('ai-audio-modal').style.display = 'none';
+        };
+      }
+    });
+
+    document.getElementById('btn-cancel-audio-explanation').addEventListener('click', () => {
+      document.getElementById('ai-audio-modal').style.display = 'none';
+    });
+
+    // Test noise button in PiP toolbar
+    document.getElementById('sim-noise').addEventListener('click', () => {
+      triggerAudioAnomalyReview(56, 'Manual simulated noise spike for AI review test');
+    });
+
+    // --- Browser Extension Detection & Blocker ---
+    function scanForExtensions() {
+      let detectedSigns = [];
+
+      // 1. Root attributes on HTML and BODY
+      const rootAttrs = document.documentElement.getAttributeNames() || [];
+      for (const attr of rootAttrs) {
+        if (attr.startsWith('data-grammarly') || attr.includes('extension') || attr.includes('inject') || attr.startsWith('data-chatgpt') || attr === 'data-test-extension') {
+          detectedSigns.push(`<html ${attr}="...">`);
+        }
+      }
+      const bodyAttrs = document.body ? (document.body.getAttributeNames() || []) : [];
+      for (const attr of bodyAttrs) {
+        if (attr.startsWith('data-grammarly') || attr.includes('extension') || attr.includes('inject')) {
+          detectedSigns.push(`<body ${attr}="...">`);
+        }
+      }
+
+      // 2. Injected DOM elements & Extension wrappers
+      const suspiciousSelectors = [
+        '[data-test-extension]',
+        '[data-grammarly-part]',
+        '[data-grammarly-shadow-root]',
+        'grammarly-extension',
+        'grammarly-desktop-integration',
+        '#loom-companion-mv3',
+        'div[id*="extension-"]',
+        'div[class*="loom-"]',
+        '#chatgpt-sidebar',
+        '#web-copilot-container',
+        'div[id*="translat"]'
+      ];
+      for (const sel of suspiciousSelectors) {
+        const match = document.querySelector(sel);
+        if (match) {
+          detectedSigns.push(`<${match.tagName.toLowerCase()} ${match.id ? 'id="'+match.id+'"' : ''}>`);
+        }
+      }
+
+      const statusExtElem = document.getElementById('status-extension');
+      const extOverlay = document.getElementById('extension-violation-overlay');
+      const detailBox = document.getElementById('extension-detail-box');
+
+      if (detectedSigns.length > 0) {
+        if (statusExtElem) {
+          statusExtElem.textContent = `Blocked (${detectedSigns.length} Detected)`;
+          statusExtElem.className = 'text-red';
+        }
+        if (detailBox) {
+          detailBox.textContent = `Detected signature(s): ${detectedSigns.join(', ')}`;
+        }
+        if (extOverlay) {
+          extOverlay.style.display = 'flex';
+        }
+        reportIncident('EXTENSION_DETECTED', 'HIGH', `Unauthorized browser extension or script detected: ${detectedSigns[0]}`, {
+          signatures: detectedSigns
+        });
+        return true;
+      } else {
+        if (statusExtElem) {
+          statusExtElem.textContent = 'Active (0 Injected)';
+          statusExtElem.className = 'text-emerald';
+        }
+        if (extOverlay) {
+          extOverlay.style.display = 'none';
+        }
+        return false;
+      }
+    }
+
+    // Set up MutationObserver to detect extensions injected at runtime
+    const extensionObserver = new MutationObserver(() => {
+      scanForExtensions();
+    });
+    extensionObserver.observe(document.documentElement, {
+      attributes: true,
+      childList: true,
+      subtree: true
+    });
+
+    // Extension test simulator button
+    document.getElementById('sim-ext').addEventListener('click', () => {
+      document.documentElement.setAttribute('data-test-extension', 'detected-ai-helper-v1');
+      scanForExtensions();
+    });
+
+    // Re-scan button on extension overlay
+    document.getElementById('btn-rescan-extensions').addEventListener('click', () => {
+      document.documentElement.removeAttribute('data-test-extension');
+      const stillFound = scanForExtensions();
+      if (!stillFound) {
+        document.getElementById('extension-violation-overlay').style.display = 'none';
+      }
+    });
+
+    // Periodic extension scan every 4 seconds
+    setInterval(scanForExtensions, 4000);
+
+    // --- Global Gemini API Key Settings ---
+    async function checkGeminiConfig() {
+      try {
+        const resp = await fetch('/api/config/gemini');
+        if (resp.ok) {
+          const data = await resp.json();
+          const badge = document.getElementById('gemini-status-badge');
+          const pill = document.getElementById('gemini-modal-status-pill');
+          const auditorStatus = document.getElementById('status-ai-auditor');
+
+          if (data.configured) {
+            badge.textContent = 'Gemini AI Active';
+            badge.parentElement.style.borderColor = 'rgba(168,85,247,0.5)';
+            badge.parentElement.style.color = '#d8b4fe';
+            pill.textContent = `Configured (${data.maskedKey})`;
+            pill.className = 'status-badge-active';
+            auditorStatus.textContent = 'Active Listening';
+            auditorStatus.className = 'text-emerald';
+          } else {
+            badge.textContent = 'Configure Gemini AI';
+            badge.parentElement.style.borderColor = 'rgba(245,158,11,0.5)';
+            badge.parentElement.style.color = '#fbbf24';
+            pill.textContent = 'No API Key Configured';
+            pill.className = 'status-badge-warning';
+            auditorStatus.textContent = 'API Key Needed';
+            auditorStatus.className = 'text-amber';
+          }
+        }
+      } catch (err) {
+        console.warn('Gemini config check notice:', err);
+      }
+    }
+
+    document.getElementById('btn-open-gemini-config').addEventListener('click', () => {
+      checkGeminiConfig();
+      document.getElementById('gemini-config-modal').style.display = 'flex';
+      document.getElementById('gemini-save-msg').style.display = 'none';
+    });
+
+    document.getElementById('btn-close-gemini-config').addEventListener('click', () => {
+      document.getElementById('gemini-config-modal').style.display = 'none';
+    });
+
+    document.getElementById('btn-cancel-gemini-config').addEventListener('click', () => {
+      document.getElementById('gemini-config-modal').style.display = 'none';
+    });
+
+    document.getElementById('btn-save-gemini-config').addEventListener('click', async () => {
+      const keyInput = document.getElementById('gemini-api-key-input');
+      const key = (keyInput.value || '').trim();
+      const msgBox = document.getElementById('gemini-save-msg');
+      const saveBtn = document.getElementById('btn-save-gemini-config');
+
+      if (!key) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.textContent = 'Please enter a valid Gemini API key.';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Testing & Saving...';
+
+      try {
+        const resp = await fetch('/api/config/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: key })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(16, 185, 129, 0.2)';
+          msgBox.style.color = '#a7f3d0';
+          msgBox.textContent = '✅ Gemini API Key verified and saved successfully!';
+          keyInput.value = '';
+          checkGeminiConfig();
+          setTimeout(() => {
+            document.getElementById('gemini-config-modal').style.display = 'none';
+          }, 1500);
+        } else {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+          msgBox.style.color = '#fca5a5';
+          msgBox.textContent = `Error: ${data.detail || 'Failed to authenticate key.'}`;
+        }
+      } catch (err) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.2)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.textContent = `Network error: ${err.message}`;
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save & Verify Key';
+      }
+    });
+
+    // --- 7. Compulsory Fullscreen & Lockdown Event Listeners ---
+    function enforceFullscreenGuard() {
+      antiCheat.start();
+
+      // Fullscreen Gate button handler
+      document.getElementById('btn-enter-fullscreen-gate').addEventListener('click', async () => {
+        try {
+          await antiCheat.requestFullscreen();
+          hasStartedExam = true;
+          document.getElementById('fullscreen-gate').style.display = 'none';
+        } catch (err) {
+          alert('Please allow fullscreen mode to begin your secure examination.');
+        }
+      });
+
+      // Re-enter Fullscreen button on violation overlay
+      document.getElementById('btn-reenter-fullscreen').addEventListener('click', async () => {
+        try {
+          await antiCheat.requestFullscreen();
+        } catch (err) {
+          console.warn('Re-enter fullscreen failed:', err);
+        }
+      });
+
+      // Strict continuous fullscreen listener
+      document.addEventListener('fullscreenchange', () => {
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (isFull) {
+          statusFullscreen.textContent = 'Enforced';
+          statusFullscreen.className = 'text-emerald';
+          document.getElementById('fullscreen-violation-overlay').style.display = 'none';
+          isTimerPaused = false;
+        } else {
+          statusFullscreen.textContent = 'Exited';
+          statusFullscreen.className = 'text-red';
+          if (hasStartedExam && !isExamLocked && !isTerminated) {
+            isTimerPaused = true;
+            document.getElementById('fullscreen-violation-overlay').style.display = 'flex';
+            reportIncident('FULLSCREEN_EXIT', 'HIGH', 'Candidate exited compulsory fullscreen exam display.');
+          }
+        }
+      });
+
+      // Window blur listener
+      window.addEventListener('blur', () => {
+        if (hasStartedExam && !isExamLocked && !isTerminated) {
+          reportIncident('TAB_BLUR', 'HIGH', 'Candidate switched tabs or minimized exam window.');
+        }
+      });
+
+      // Window visibility change
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && hasStartedExam && !isExamLocked && !isTerminated) {
+          reportIncident('TAB_BLUR', 'HIGH', 'Exam window hidden / candidate navigated to another application.');
+        }
+      });
+
+      // Prevent right-click context menu
+      document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        reportIncident('CONTEXT_MENU_ATTEMPT', 'LOW', 'Candidate attempted to open right-click context menu.');
+        return false;
+      });
+
+      // Block critical shortcuts: F11, F12, Escape, DevTools, Clipboard
+      window.addEventListener('keydown', (e) => {
+        // Block F11, F12, Escape
+        if (['F11', 'F12', 'Escape'].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          reportIncident('BLOCKED_SHORTCUT', 'MEDIUM', `Blocked system navigation key: ${e.key}`);
+          return false;
+        }
+        // Block DevTools combinations (Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C) and View Source (Ctrl+U)
+        if ((e.ctrlKey || e.metaKey) && (e.shiftKey && ['I', 'J', 'C', 'i', 'j', 'c'].includes(e.key) || ['u', 'U', 's', 'S', 'p', 'P'].includes(e.key))) {
+          e.preventDefault();
+          e.stopPropagation();
+          reportIncident('BLOCKED_SHORTCUT', 'HIGH', `Attempted DevTools or inspection shortcut: Ctrl+${e.key}`);
+          return false;
+        }
+        // Block clipboard actions
+        if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'a', 'C', 'V', 'X', 'A'].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          reportIncident('CLIPBOARD_VIOLATION', 'MEDIUM', `Blocked clipboard key combination: Ctrl+${e.key}`);
+          return false;
+        }
+      }, true);
+    }
+
+    // 8. Question Renderer & Palette Navigation
+    function renderPalette() {
+      paletteGrid.innerHTML = '';
+      let answeredCount = 0;
+
+      EXAM_QUESTIONS.forEach((q, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'question-btn';
+        btn.textContent = idx + 1;
+
+        const isAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== '';
+        const isMarked = markedQuestions.has(q.id);
+        const isCurrent = idx === currentQuestionIndex;
+
+        if (isAnswered) answeredCount++;
+
+        if (isCurrent) {
+          btn.classList.add('current');
+        } else if (isMarked) {
+          btn.classList.add('marked');
+        } else if (isAnswered) {
+          btn.classList.add('answered');
+        }
+
+        btn.addEventListener('click', () => {
+          saveCurrentResponse();
+          currentQuestionIndex = idx;
+          renderCurrentQuestion();
+          renderPalette();
+        });
+
+        paletteGrid.appendChild(btn);
+      });
+
+      answeredCounter.textContent = `${answeredCount} / ${EXAM_QUESTIONS.length} Answered`;
+      document.getElementById('modal-answered-count').textContent = answeredCount;
+      document.getElementById('modal-unanswered-count').textContent = EXAM_QUESTIONS.length - answeredCount;
+      document.getElementById('modal-marked-count').textContent = markedQuestions.size;
+    }
+
+    function renderCurrentQuestion() {
+      const q = EXAM_QUESTIONS[currentQuestionIndex];
+      qBadgeType.textContent = q.badge;
+      qPoints.textContent = `Weight: ${q.points} Points`;
+      qTitle.textContent = `Q${currentQuestionIndex + 1}: ${q.title}`;
+      checkMarkReview.checked = markedQuestions.has(q.id);
+
+      btnPrev.disabled = (currentQuestionIndex === 0);
+      btnNext.textContent = (currentQuestionIndex === EXAM_QUESTIONS.length - 1) ? 'Review & Submit' : 'Save & Next →';
+
+      qBodyContainer.innerHTML = '';
+
+      if (q.type === 'mcq') {
+        const optsContainer = document.createElement('div');
+        optsContainer.style.display = 'flex';
+        optsContainer.style.flexDirection = 'column';
+        optsContainer.style.gap = '0.75rem';
+
+        q.options.forEach((optText, optIdx) => {
+          const optDiv = document.createElement('div');
+          optDiv.className = 'mcq-option';
+          if (userAnswers[q.id] === optIdx) {
+            optDiv.classList.add('selected');
+          }
+
+          optDiv.innerHTML = `
+            <div class="mcq-radio-indicator"></div>
+            <div style="font-size: 0.95rem; line-height: 1.4; color: #fff;">${optText}</div>
+          `;
+
+          optDiv.addEventListener('click', () => {
+            userAnswers[q.id] = optIdx;
+            optsContainer.querySelectorAll('.mcq-option').forEach(el => el.classList.remove('selected'));
+            optDiv.classList.add('selected');
+            renderPalette();
+          });
+
+          optsContainer.appendChild(optDiv);
+        });
+
+        qBodyContainer.appendChild(optsContainer);
+
+      } else if (q.type === 'code') {
+        const editor = document.createElement('textarea');
+        editor.className = 'code-editor-box';
+        editor.spellcheck = false;
+        editor.value = userAnswers[q.id] !== undefined ? userAnswers[q.id] : q.placeholder;
+
+        editor.addEventListener('input', () => {
+          userAnswers[q.id] = editor.value;
+          renderPalette();
+        });
+
+        qBodyContainer.appendChild(editor);
+      }
+    }
+
+    function saveCurrentResponse() {
+      const q = EXAM_QUESTIONS[currentQuestionIndex];
+      if (checkMarkReview.checked) {
+        markedQuestions.add(q.id);
+      } else {
+        markedQuestions.delete(q.id);
+      }
+    }
+
+    // Navigation buttons
+    btnPrev.addEventListener('click', () => {
+      saveCurrentResponse();
+      if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        renderCurrentQuestion();
+        renderPalette();
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      saveCurrentResponse();
+      if (currentQuestionIndex < EXAM_QUESTIONS.length - 1) {
+        currentQuestionIndex++;
+        renderCurrentQuestion();
+        renderPalette();
+      } else {
+        // On last question, open submission review modal
+        document.getElementById('submit-confirm-modal').style.display = 'flex';
+      }
+    });
+
+    btnClear.addEventListener('click', () => {
+      const q = EXAM_QUESTIONS[currentQuestionIndex];
+      delete userAnswers[q.id];
+      markedQuestions.delete(q.id);
+      renderCurrentQuestion();
+      renderPalette();
+    });
+
+    checkMarkReview.addEventListener('change', () => {
+      const q = EXAM_QUESTIONS[currentQuestionIndex];
+      if (checkMarkReview.checked) {
+        markedQuestions.add(q.id);
+      } else {
+        markedQuestions.delete(q.id);
+      }
+      renderPalette();
+    });
+
+    // Submit Modal Handlers
+    document.getElementById('btn-submit-exam').addEventListener('click', () => {
+      saveCurrentResponse();
+      renderPalette();
+      document.getElementById('submit-confirm-modal').style.display = 'flex';
+    });
+
+    document.getElementById('btn-cancel-submit').addEventListener('click', () => {
+      document.getElementById('submit-confirm-modal').style.display = 'none';
+    });
+
+    document.getElementById('btn-confirm-final-submit').addEventListener('click', () => {
+      document.getElementById('submit-confirm-modal').style.display = 'none';
+      alert('Examination submitted successfully. Your responses and integrity telemetry have been recorded.');
+      window.location.href = '../index.html';
+    });
+
+    // 9. Countdown Timer
+    let timeRemainingSeconds = 45 * 60;
+    const timerText = document.getElementById('timer-text');
+    const examTimerElem = document.getElementById('exam-timer');
+
+    const timerInterval = setInterval(() => {
+      // Freezes timer if exam is locked, terminated, in fullscreen violation pause, or not yet started
+      if (isExamLocked || isTerminated || isTimerPaused || !hasStartedExam) return;
+
+      timeRemainingSeconds--;
+      if (timeRemainingSeconds <= 0) {
+        clearInterval(timerInterval);
+        alert('Time has expired. Your examination will be submitted automatically.');
+        window.location.href = '../index.html';
+        return;
+      }
+
+      const mins = Math.floor(timeRemainingSeconds / 60);
+      const secs = timeRemainingSeconds % 60;
+      timerText.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+      if (timeRemainingSeconds <= 300) {
+        examTimerElem.classList.add('timer-warning');
+      }
+    }, 1000);
+
+    // 10. Startup Initialization
+    window.addEventListener('DOMContentLoaded', async () => {
+      renderCurrentQuestion();
+      renderPalette();
+      await initializeMedia();
+      enforceFullscreenGuard();
+      scanForExtensions();
+      await checkGeminiConfig();
+    });
+  </script>
+</body>
+</html>
