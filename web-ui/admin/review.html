@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incident Review & Timeline Scrubber | ProctorGuard</title>
+  <link rel="stylesheet" href="../static/css/proctor.css">
+  <style>
+    .review-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 1100px) {
+      .review-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .breakdown-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 0.75rem;
+    }
+
+    .breakdown-table th {
+      text-align: left;
+      padding: 0.6rem 0.8rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--glass-border);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .breakdown-table td {
+      padding: 0.65rem 0.8rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #fff;
+    }
+
+    .breakdown-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .audit-table th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .audit-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .audit-table tr:hover td {
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    .audit-table tr.active-row td {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    /* Print Stylesheet */
+    @media print {
+      body {
+        background: #fff !important;
+        color: #000 !important;
+      }
+      .proctor-header, .btn, .timeline-scrubber-container, .no-print {
+        display: none !important;
+      }
+      .glass-panel {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+      }
+      .audit-table th, .breakdown-table th {
+        background: #eee !important;
+        color: #000 !important;
+      }
+      .audit-table td, .breakdown-table td {
+        color: #000 !important;
+        border-bottom: 1px solid #ddd !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header class="proctor-header no-print">
+    <div class="proctor-logo">
+      <div class="proctor-logo-icon">🛡️</div>
+      <span>ProctorGuard Incident Scrubber</span>
+    </div>
+
+    <!-- Center Session & Candidate Selector -->
+    <div class="flex-gap-2">
+      <div class="form-group" style="flex-direction: row; align-items: center;">
+        <label for="select-session" class="form-label" style="margin-bottom:0; font-size: 0.78rem;">Session:</label>
+        <select id="select-session" class="form-select" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; min-width: 140px;">
+          <option value="default">default</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="flex-direction: row; align-items: center;">
+        <label for="select-candidate" class="form-label" style="margin-bottom:0; font-size: 0.78rem;">Candidate:</label>
+        <select id="select-candidate" class="form-select" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; min-width: 180px;">
+          <option value="ALL">All Candidates</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right Quick Links & Exports -->
+    <div class="flex-gap-1">
+      <a href="dashboard.html" class="btn btn-secondary btn-sm">
+        📺 Live Control Room
+      </a>
+      <a href="simulator.html" class="btn btn-secondary btn-sm">
+        🧪 Simulator
+      </a>
+      <button class="btn btn-primary btn-sm" id="btn-export-json">
+        📥 Export Audit Log (JSON)
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-print-report">
+        🖨️ Print Report
+      </button>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="container">
+    <!-- Candidate Overview Card -->
+    <div class="glass-panel" style="margin-top: 1.5rem; padding: 1.25rem 1.75rem;">
+      <div class="flex-between">
+        <div class="flex-gap-2">
+          <div style="width: 52px; height: 52px; border-radius: var(--radius-md); background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+            👤
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <h1 style="font-size: 1.35rem; font-weight: 700; color: #fff;" id="cand-display-name">Candidate Review</h1>
+              <span id="cand-display-status" class="status-badge-active">ACTIVE</span>
+            </div>
+            <div class="text-muted" style="font-size: 0.8rem; margin-top: 0.2rem;">
+              Candidate ID: <span class="mono" id="cand-display-id" style="color: #fff;">cand-01</span> | 
+              Session: <span class="mono" id="session-display-id" style="color: #fff;">default</span> | 
+              Total Incidents: <span id="cand-incidents-count" style="font-weight: 700; color: #fbbf24;">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculated Risk Badge -->
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="text-align: right;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Calculated Risk Score</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">min(100, Σ wi × Ni)</div>
+          </div>
+          <div class="risk-gauge">
+            <svg viewBox="0 0 36 36">
+              <path class="risk-gauge-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <path id="risk-gauge-circle" class="risk-gauge-bar risk-low" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            </svg>
+            <div class="risk-gauge-value" id="risk-gauge-number">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Review Section: Timeline & Synchronized Snapshot Viewer -->
+    <div class="review-grid">
+      <!-- Left: Interactive Timeline Scrubber & Audit Log -->
+      <section style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Timeline Scrubber Card -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div class="flex-between" style="margin-bottom: 0.75rem;">
+            <div>
+              <h2 style="font-size: 1rem; font-weight: 700; color: #fff;">Chronological Violation Timeline</h2>
+              <span class="text-muted" style="font-size: 0.75rem;">Interactive scrubber: click or hover pins to synchronize snapshot frame</span>
+            </div>
+            <div class="flex-gap-1">
+              <button class="btn btn-secondary btn-sm" id="btn-scrub-prev" title="Previous Incident">⏮ Prev</button>
+              <button class="btn btn-secondary btn-sm" id="btn-scrub-next" title="Next Incident">Next ⏭</button>
+            </div>
+          </div>
+
+          <!-- Timeline Track Bar -->
+          <div class="timeline-scrubber-container">
+            <div class="timeline-track" id="timeline-track-elem">
+              <div class="timeline-progress" id="timeline-progress-elem"></div>
+              <div class="timeline-cursor" id="timeline-cursor-elem" style="left: 0%;"></div>
+              <div id="timeline-pins-container">
+                <!-- Dynamically populated pins -->
+              </div>
+            </div>
+            <div class="flex-between" style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.25rem;">
+              <span id="time-start-label">00:00:00</span>
+              <span id="time-active-incident" style="color: var(--accent-cyan); font-weight: 600;">Select or scrub violation pin</span>
+              <span id="time-end-label">00:00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident Audit Ledger Table -->
+        <div class="glass-panel" style="padding: 0; overflow: hidden;">
+          <div class="flex-between" style="padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid var(--glass-border);">
+            <h3 style="font-size: 1rem; font-weight: 700; color: #fff;">Detailed Incident Audit Log</h3>
+            <div class="flex-gap-1">
+              <input type="text" id="table-search-input" class="form-input" placeholder="Search event..." style="padding: 0.3rem 0.65rem; font-size: 0.78rem; width: 150px;">
+              <select id="table-sev-filter" class="form-select" style="padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+                <option value="ALL">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto; max-height: 480px; overflow-y: auto;">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Severity</th>
+                  <th>Auto-Action</th>
+                  <th>Weight (wi)</th>
+                  <th>Snapshot</th>
+                  <th>Metadata</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Synchronized Snapshot Frame Viewer & Formula Breakdown -->
+      <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Synchronized Snapshot Frame Card -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div class="flex-between" style="margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 700; color: #fff;">Synchronized Frame Capture</h3>
+            <span class="badge-severity badge-low" id="viewer-sev-badge">NORMAL</span>
+          </div>
+
+          <!-- 16:9 Image Preview -->
+          <div style="width: 100%; aspect-ratio: 16 / 9; background: #020617; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; position: relative;">
+            <img id="viewer-snapshot-img" src="" alt="Snapshot" style="width: 100%; height: 100%; object-fit: contain; display: none;">
+            <div id="viewer-placeholder" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem;">
+              <div style="font-size: 2rem; margin-bottom: 0.4rem;">📷</div>
+              <span>Select an incident pin to view captured frame</span>
+            </div>
+          </div>
+
+          <!-- Snapshot Details Box -->
+          <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem;">
+            <div class="flex-between">
+              <span class="text-muted">Event:</span>
+              <span class="mono" style="font-weight: 700; color: #fff;" id="viewer-event-name">None Selected</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Captured At:</span>
+              <span class="mono" id="viewer-timestamp">--:--:--</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Auto-Action Triggered:</span>
+              <span class="mono text-cyan" id="viewer-auto-action">NONE</span>
+            </div>
+            <div class="flex-between">
+              <span class="text-muted">Risk Weight:</span>
+              <span class="mono" id="viewer-risk-weight">+0</span>
+            </div>
+            <div style="margin-top: 0.25rem; padding: 0.6rem; background: rgba(15, 23, 42, 0.7); border-radius: var(--radius-sm); border: 1px solid var(--glass-border); font-size: 0.75rem; color: var(--text-secondary);" id="viewer-metadata-box">
+              No incident selected.
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Formula Breakdown Matrix -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 0.3rem;">
+            Risk Formula Breakdown
+          </div>
+          <p class="text-muted" style="font-size: 0.75rem;">
+            Calculated as: <span class="mono text-cyan">min(100, Σ (wi × Ni))</span>
+          </p>
+
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Event Type</th>
+                <th>wi</th>
+                <th>Ni</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="breakdown-table-body">
+              <!-- Dynamically populated breakdown -->
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Incident Review & Timeline Scrubber Controller
+     */
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentSessionId = urlParams.get('sessionId') || urlParams.get('session_id') || 'default';
+    let currentCandidateId = urlParams.get('candidateId') || urlParams.get('candidate_id') || 'ALL';
+
+    // State
+    let candidateIncidents = [];
+    let activeIncidentIndex = -1;
+    const candidatesList = [];
+
+    // Weights per Event Type (PRD standard)
+    const EVENT_WEIGHTS = {
+      'PROCESS_BLACKLIST_HIT': 50,
+      'INJECTED_DLL_DETECTED': 50,
+      'MULTIPLE_DISPLAYS_DETECTED': 40,
+      'DISPLAY_TOPOLOGY_CHANGED': 40,
+      'VIRTUAL_CAMERA_DETECTED': 35,
+      'TAB_BLUR': 15,
+      'FULLSCREEN_EXIT': 15,
+      'ZERO_FACE_DETECTED': 20,
+      'MULTIPLE_FACES_DETECTED': 20,
+      'HEAD_POSE_AWAY': 15,
+      'SUSPICIOUS_AUDIO_LEVEL': 10,
+      'CLIPBOARD_VIOLATION': 5,
+      'CONTEXT_MENU_ATTEMPT': 5
+    };
+
+    const AUTO_ACTIONS = {
+      'PROCESS_BLACKLIST_HIT': 'PROMPT_LOCK_AND_NOTIFY_ADMIN',
+      'INJECTED_DLL_DETECTED': 'PROMPT_LOCK_AND_NOTIFY_ADMIN',
+      'MULTIPLE_DISPLAYS_DETECTED': 'LOCK_EXAM_INTERFACE',
+      'DISPLAY_TOPOLOGY_CHANGED': 'LOCK_EXAM_INTERFACE',
+      'VIRTUAL_CAMERA_DETECTED': 'BLOCK_STREAM_STARTUP',
+      'TAB_BLUR': 'WARN_CANDIDATE',
+      'FULLSCREEN_EXIT': 'WARN_CANDIDATE',
+      'ZERO_FACE_DETECTED': 'FLAG_FRAME_FOR_REVIEW',
+      'MULTIPLE_FACES_DETECTED': 'FLAG_FRAME_FOR_REVIEW',
+      'HEAD_POSE_AWAY': 'FLAG_FRAME_FOR_REVIEW',
+      'SUSPICIOUS_AUDIO_LEVEL': 'MARK_TIMELINE_TIMESTAMP',
+      'CLIPBOARD_VIOLATION': 'BLOCK_EVENT',
+      'CONTEXT_MENU_ATTEMPT': 'BLOCK_EVENT'
+    };
+
+    // DOM Elements
+    const selectSession = document.getElementById('select-session');
+    const selectCandidate = document.getElementById('select-candidate');
+    const candDisplayName = document.getElementById('cand-display-name');
+    const candDisplayId = document.getElementById('cand-display-id');
+    const candDisplayStatus = document.getElementById('cand-display-status');
+    const candIncidentsCount = document.getElementById('cand-incidents-count');
+    const sessionDisplayId = document.getElementById('session-display-id');
+
+    const riskGaugeNumber = document.getElementById('risk-gauge-number');
+    const riskGaugeCircle = document.getElementById('risk-gauge-circle');
+
+    const timelineTrackElem = document.getElementById('timeline-track-elem');
+    const timelineProgressElem = document.getElementById('timeline-progress-elem');
+    const timelineCursorElem = document.getElementById('timeline-cursor-elem');
+    const timelinePinsContainer = document.getElementById('timeline-pins-container');
+    const timeStartLabel = document.getElementById('time-start-label');
+    const timeEndLabel = document.getElementById('time-end-label');
+    const timeActiveIncident = document.getElementById('time-active-incident');
+
+    const viewerSnapshotImg = document.getElementById('viewer-snapshot-img');
+    const viewerPlaceholder = document.getElementById('viewer-placeholder');
+    const viewerEventName = document.getElementById('viewer-event-name');
+    const viewerSevBadge = document.getElementById('viewer-sev-badge');
+    const viewerTimestamp = document.getElementById('viewer-timestamp');
+    const viewerAutoAction = document.getElementById('viewer-auto-action');
+    const viewerRiskWeight = document.getElementById('viewer-risk-weight');
+    const viewerMetadataBox = document.getElementById('viewer-metadata-box');
+
+    const auditTableBody = document.getElementById('audit-table-body');
+    const breakdownTableBody = document.getElementById('breakdown-table-body');
+    const tableSearchInput = document.getElementById('table-search-input');
+    const tableSevFilter = document.getElementById('table-sev-filter');
+
+    // 1. Load Sessions & Candidates
+    async function loadSessions() {
+      try {
+        const res = await fetch('/api/sessions');
+        if (res.ok) {
+          const sessions = await res.json();
+          selectSession.innerHTML = '';
+          sessions.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.sessionId;
+            opt.textContent = `${s.name || 'Session'} (${s.sessionId})`;
+            if (s.sessionId === currentSessionId) opt.selected = true;
+            selectSession.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.warn('Could not load sessions:', err);
+      }
+    }
+
+    async function loadCandidates() {
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(currentSessionId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          selectCandidate.innerHTML = '<option value="ALL">All Candidates in Session</option>';
+          if (Array.isArray(data.candidates)) {
+            data.candidates.forEach(c => {
+              const opt = document.createElement('option');
+              opt.value = c.candidateId;
+              opt.textContent = `${c.name || 'Candidate'} (${c.candidateId})`;
+              if (c.candidateId === currentCandidateId) opt.selected = true;
+              selectCandidate.appendChild(opt);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load candidates:', err);
+      }
+    }
+
+    selectSession.addEventListener('change', () => {
+      currentSessionId = selectSession.value;
+      loadCandidates().then(() => loadIncidents());
+    });
+
+    selectCandidate.addEventListener('change', () => {
+      currentCandidateId = selectCandidate.value;
+      loadIncidents();
+    });
+
+    // 2. Fetch Incidents for Session / Candidate
+    async function loadIncidents() {
+      sessionDisplayId.textContent = currentSessionId;
+      candDisplayId.textContent = currentCandidateId;
+      candDisplayName.textContent = (currentCandidateId === 'ALL') ? 'All Session Candidates' : `Candidate ${currentCandidateId}`;
+
+      try {
+        let url = `/api/sessions/${encodeURIComponent(currentSessionId)}/incidents?limit=250`;
+        if (currentCandidateId !== 'ALL') {
+          url += `&candidateId=${encodeURIComponent(currentCandidateId)}`;
+        }
+
+        const res = await fetch(url);
+        if (res.ok) {
+          candidateIncidents = await res.json();
+
+          // Sort chronologically ascending
+          candidateIncidents.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+
+          candIncidentsCount.textContent = candidateIncidents.length;
+
+          renderTimeline();
+          renderAuditTable();
+          calculateRiskBreakdown();
+
+          // Select first incident if available
+          if (candidateIncidents.length > 0) {
+            selectIncident(0);
+          } else {
+            clearViewer();
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading incidents:', err);
+      }
+    }
+
+    // 3. Risk Calculation Formula: Risk = min(100, sum(wi * Ni))
+    function calculateRiskBreakdown() {
+      const counts = {};
+      let totalRisk = 0;
+
+      candidateIncidents.forEach(inc => {
+        const type = inc.eventType || inc.type || 'UNKNOWN';
+        counts[type] = (counts[type] || 0) + 1;
+      });
+
+      breakdownTableBody.innerHTML = '';
+
+      Object.entries(counts).forEach(([type, count]) => {
+        const weight = EVENT_WEIGHTS[type] || 10;
+        const subtotal = weight * count;
+        totalRisk += subtotal;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span class="mono" style="font-weight: 600;">${type}</span></td>
+          <td class="mono text-muted">+${weight}</td>
+          <td class="mono">${count}</td>
+          <td class="mono text-cyan" style="font-weight: 700;">+${subtotal}</td>
+        `;
+        breakdownTableBody.appendChild(row);
+      });
+
+      // Clamp risk score to max 100
+      const clampedScore = Math.min(100, totalRisk);
+      riskGaugeNumber.textContent = clampedScore;
+
+      // Update circular gauge
+      const circlePct = Math.round(clampedScore);
+      riskGaugeCircle.setAttribute('stroke-dasharray', `${circlePct}, 100`);
+
+      riskGaugeCircle.classList.remove('risk-low', 'risk-medium', 'risk-high', 'risk-critical');
+      if (clampedScore < 25) riskGaugeCircle.classList.add('risk-low');
+      else if (clampedScore < 50) riskGaugeCircle.classList.add('risk-medium');
+      else if (clampedScore < 75) riskGaugeCircle.classList.add('risk-high');
+      else riskGaugeCircle.classList.add('risk-critical');
+    }
+
+    // 4. Render Chronological Timeline Scrubber
+    function renderTimeline() {
+      timelinePinsContainer.innerHTML = '';
+      if (candidateIncidents.length === 0) {
+        timeStartLabel.textContent = '00:00:00';
+        timeEndLabel.textContent = '00:00:00';
+        timeActiveIncident.textContent = 'No recorded violations';
+        timelineProgressElem.style.width = '0%';
+        timelineCursorElem.style.left = '0%';
+        return;
+      }
+
+      const firstTime = new Date(candidateIncidents[0].timestamp).getTime();
+      const lastTime = new Date(candidateIncidents[candidateIncidents.length - 1].timestamp).getTime();
+      const durationMs = Math.max(1000, lastTime - firstTime);
+
+      timeStartLabel.textContent = new Date(firstTime).toLocaleTimeString();
+      timeEndLabel.textContent = new Date(lastTime).toLocaleTimeString();
+
+      candidateIncidents.forEach((inc, idx) => {
+        const t = new Date(inc.timestamp).getTime();
+        const pct = Math.min(100, Math.max(0, ((t - firstTime) / durationMs) * 100));
+
+        const pin = document.createElement('div');
+        const sev = (inc.severity || 'MEDIUM').toLowerCase();
+        pin.className = `timeline-pin pin-${sev}`;
+        pin.style.left = `${pct}%`;
+        pin.title = `[${inc.severity}] ${inc.eventType || inc.type} (${new Date(inc.timestamp).toLocaleTimeString()})`;
+
+        pin.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectIncident(idx);
+        });
+
+        timelinePinsContainer.appendChild(pin);
+      });
+
+      timelineTrackElem.addEventListener('click', (e) => {
+        const rect = timelineTrackElem.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickPct = (clickX / rect.width) * 100;
+
+        // Find closest incident pin
+        let closestIdx = 0;
+        let minDiff = Infinity;
+        candidateIncidents.forEach((inc, idx) => {
+          const t = new Date(inc.timestamp).getTime();
+          const p = ((t - firstTime) / durationMs) * 100;
+          const diff = Math.abs(p - clickPct);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIdx = idx;
+          }
+        });
+
+        selectIncident(closestIdx);
+      });
+    }
+
+    // 5. Select & Synchronize Incident
+    function selectIncident(index) {
+      if (index < 0 || index >= candidateIncidents.length) return;
+      activeIncidentIndex = index;
+      const inc = candidateIncidents[index];
+
+      // Update Timeline Position
+      const firstTime = new Date(candidateIncidents[0].timestamp).getTime();
+      const lastTime = new Date(candidateIncidents[candidateIncidents.length - 1].timestamp).getTime();
+      const durationMs = Math.max(1000, lastTime - firstTime);
+      const incTime = new Date(inc.timestamp).getTime();
+      const pct = Math.min(100, Math.max(0, ((incTime - firstTime) / durationMs) * 100));
+
+      timelineProgressElem.style.width = `${pct}%`;
+      timelineCursorElem.style.left = `${pct}%`;
+
+      timeActiveIncident.textContent = `Incident #${index + 1}: ${inc.eventType || inc.type} (${new Date(inc.timestamp).toLocaleTimeString()})`;
+
+      // Update Synchronized Frame Viewer
+      if (inc.snapshotFrame) {
+        viewerSnapshotImg.src = inc.snapshotFrame;
+        viewerSnapshotImg.style.display = 'block';
+        viewerPlaceholder.style.display = 'none';
+      } else {
+        viewerSnapshotImg.style.display = 'none';
+        viewerPlaceholder.style.display = 'block';
+      }
+
+      const eventName = inc.eventType || inc.type || 'UNKNOWN';
+      const weight = EVENT_WEIGHTS[eventName] || inc.weight || 10;
+      const autoAction = inc.autoAction || AUTO_ACTIONS[eventName] || 'LOG_INCIDENT';
+
+      viewerEventName.textContent = eventName;
+      viewerSevBadge.textContent = inc.severity || 'MEDIUM';
+      viewerSevBadge.className = `badge-severity ${inc.severity === 'CRITICAL' ? 'badge-critical' : (inc.severity === 'HIGH' ? 'badge-high' : 'badge-medium')}`;
+      viewerTimestamp.textContent = inc.timestamp ? new Date(inc.timestamp).toLocaleString() : '--';
+      viewerAutoAction.textContent = autoAction;
+      viewerRiskWeight.textContent = `+${weight} pts`;
+
+      const meta = inc.metadata || {};
+      viewerMetadataBox.textContent = typeof meta === 'object' ? JSON.stringify(meta, null, 2) : String(meta);
+
+      // Highlight active table row
+      document.querySelectorAll('#audit-table-body tr').forEach(r => r.classList.remove('active-row'));
+      const activeRow = document.getElementById(`row-inc-${index}`);
+      if (activeRow) {
+        activeRow.classList.add('active-row');
+        activeRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function clearViewer() {
+      viewerSnapshotImg.style.display = 'none';
+      viewerPlaceholder.style.display = 'block';
+      viewerEventName.textContent = 'None Selected';
+      viewerSevBadge.textContent = 'NOMINAL';
+      viewerSevBadge.className = 'badge-severity badge-low';
+      viewerTimestamp.textContent = '--:--:--';
+      viewerAutoAction.textContent = 'NONE';
+      viewerRiskWeight.textContent = '+0';
+      viewerMetadataBox.textContent = 'No incident selected.';
+    }
+
+    // Step navigation buttons
+    document.getElementById('btn-scrub-prev').addEventListener('click', () => {
+      if (activeIncidentIndex > 0) {
+        selectIncident(activeIncidentIndex - 1);
+      }
+    });
+
+    document.getElementById('btn-scrub-next').addEventListener('click', () => {
+      if (activeIncidentIndex < candidateIncidents.length - 1) {
+        selectIncident(activeIncidentIndex + 1);
+      }
+    });
+
+    // 6. Render Audit Table with Filters & Search
+    function renderAuditTable() {
+      let filtered = candidateIncidents;
+
+      const q = tableSearchInput.value.trim().toLowerCase();
+      if (q) {
+        filtered = filtered.filter(i => {
+          const type = (i.eventType || i.type || '').toLowerCase();
+          const metaMsg = ((i.metadata && i.metadata.message) || '').toLowerCase();
+          return type.includes(q) || metaMsg.includes(q);
+        });
+      }
+
+      const sev = tableSevFilter.value;
+      if (sev !== 'ALL') {
+        filtered = filtered.filter(i => (i.severity || 'MEDIUM').toUpperCase() === sev);
+      }
+
+      auditTableBody.innerHTML = '';
+      if (filtered.length === 0) {
+        auditTableBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+              No incidents match the search criteria.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      filtered.forEach((inc, idx) => {
+        const originalIdx = candidateIncidents.indexOf(inc);
+        const row = document.createElement('tr');
+        row.id = `row-inc-${originalIdx}`;
+
+        const eventName = inc.eventType || inc.type || 'INCIDENT';
+        const weight = EVENT_WEIGHTS[eventName] || inc.weight || 10;
+        const autoAction = inc.autoAction || AUTO_ACTIONS[eventName] || 'LOG_INCIDENT';
+
+        const sev = (inc.severity || 'MEDIUM').toUpperCase();
+        let sevClass = 'badge-medium';
+        if (sev === 'CRITICAL') sevClass = 'badge-critical';
+        else if (sev === 'HIGH') sevClass = 'badge-high';
+        else if (sev === 'LOW') sevClass = 'badge-low';
+
+        const snapIcon = inc.snapshotFrame 
+          ? `<span title="Snapshot Available" style="color: #38bdf8;">📷 Yes</span>` 
+          : `<span class="text-muted">No</span>`;
+
+        const metaSummary = (inc.metadata && (inc.metadata.message || inc.metadata.reason)) || 'Standard telemetry';
+
+        row.innerHTML = `
+          <td class="mono">${originalIdx + 1}</td>
+          <td class="mono">${new Date(inc.timestamp).toLocaleTimeString()}</td>
+          <td><span class="mono" style="font-weight: 700; color: #fff;">${eventName}</span></td>
+          <td><span class="badge-severity ${sevClass}">${sev}</span></td>
+          <td class="mono" style="font-size: 0.75rem; color: var(--accent-cyan);">${autoAction}</td>
+          <td class="mono" style="font-weight: 700;">+${weight}</td>
+          <td>${snapIcon}</td>
+          <td style="color: var(--text-secondary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${metaSummary}">
+            ${metaSummary}
+          </td>
+        `;
+
+        row.addEventListener('click', () => {
+          selectIncident(originalIdx);
+        });
+
+        auditTableBody.appendChild(row);
+      });
+    }
+
+    tableSearchInput.addEventListener('input', renderAuditTable);
+    tableSevFilter.addEventListener('change', renderAuditTable);
+
+    // 7. Export Audit Log (JSON)
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      const exportData = {
+        sessionId: currentSessionId,
+        candidateId: currentCandidateId,
+        exportedAt: new Date().toISOString(),
+        totalIncidents: candidateIncidents.length,
+        incidents: candidateIncidents
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-log-${currentSessionId}-${currentCandidateId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // 8. Print Incident Report
+    document.getElementById('btn-print-report').addEventListener('click', () => {
+      window.print();
+    });
+
+    // Initial Startup
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadSessions();
+      await loadCandidates();
+      await loadIncidents();
+    });
+  </script>
+</body>
+</html>
