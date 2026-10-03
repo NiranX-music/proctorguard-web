@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cheat Simulation Playground | ProctorGuard</title>
+  <link rel="stylesheet" href="../static/css/proctor.css">
+  <style>
+    .sim-layout {
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+      .sim-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .vector-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    .vector-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .vector-card.card-sev-critical {
+      border-left: 4px solid var(--severity-critical);
+    }
+
+    .vector-card.card-sev-high {
+      border-left: 4px solid var(--severity-high);
+    }
+
+    .vector-card.card-sev-medium {
+      border-left: 4px solid var(--severity-medium);
+    }
+
+    .vector-card.card-sev-low {
+      border-left: 4px solid var(--severity-low);
+    }
+
+    .vector-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .log-terminal {
+      background: #050811;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      height: 380px;
+      overflow-y: auto;
+      color: #38bdf8;
+      line-height: 1.5;
+    }
+
+    .log-terminal::-webkit-scrollbar {
+      width: 5px;
+    }
+    .log-terminal::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    .log-entry {
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header class="proctor-header">
+    <div class="proctor-logo">
+      <div class="proctor-logo-icon">🧪</div>
+      <span>ProctorGuard Cheat Simulator</span>
+    </div>
+
+    <div class="flex-gap-2">
+      <span class="badge-live-pulse" id="sim-ws-badge">
+        <span class="pulse-dot"></span> Socket Connected
+      </span>
+      <a href="dashboard.html" class="btn btn-secondary btn-sm">
+        📺 Live Control Room
+      </a>
+      <a href="review.html" class="btn btn-secondary btn-sm">
+        📊 Incident Review
+      </a>
+      <a href="../index.html" class="btn btn-secondary btn-sm">
+        🏠 Portal Home
+      </a>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="container">
+    <!-- Target Configuration Bar -->
+    <div class="glass-panel" style="margin-top: 1.5rem; padding: 1.25rem 1.5rem;">
+      <div style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 0.75rem;">
+        Simulation Target Parameters & Telemetry Channel
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+        <div class="form-group">
+          <label class="form-label">Session ID:</label>
+          <input type="text" id="sim-session-id" class="form-input" value="default">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Candidate ID:</label>
+          <input type="text" id="sim-candidate-id" class="form-input" value="cand_sim_01">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Candidate Name:</label>
+          <input type="text" id="sim-candidate-name" class="form-input" value="Jordan Brooks (Test)">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Simulation Channel:</label>
+          <select id="sim-channel-select" class="form-select">
+            <option value="candidate">Candidate WebSocket Channel</option>
+            <option value="companion">Native Companion Host Channel</option>
+            <option value="mesh">Direct Proctor Mesh</option>
+          </select>
+        </div>
+
+        <div class="flex-gap-1">
+          <button class="btn btn-secondary" id="btn-reconnect-sim" style="height: 42px; width: 100%;">
+            🔄 Connect
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Automation Sequences -->
+      <div class="flex-between" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--glass-border);">
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          Automated Attack Scripts:
+        </div>
+        <div class="flex-gap-1">
+          <button class="btn btn-secondary btn-sm" id="btn-seq-strike3">
+            ⚡ 3-Strike Warning Lockout (3x Tab Blur)
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-seq-escalate">
+            🔥 Gradual Escalation (Low → Critical)
+          </button>
+          <button class="btn btn-danger btn-sm" id="btn-reset-candidate">
+            🧹 Reset Candidate Score
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simulator Layout -->
+    <div class="sim-layout">
+      <!-- Left: 13+ Violation Vector Simulation Cards -->
+      <section>
+        <div class="flex-between" style="margin-bottom: 1rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 700; color: #fff;">
+            Violation Vectors (13 Attack Scenarios)
+          </h2>
+          <span class="text-muted" style="font-size: 0.75rem;">Click trigger button to fire synthetic payload</span>
+        </div>
+
+        <!-- Group: CRITICAL VIOLATIONS -->
+        <div style="margin-bottom: 1.5rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--severity-critical); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.6rem;">
+            Critical Violations (Weight 35 - 50 | Auto Action: Lock Exam)
+          </div>
+          <div class="vector-grid">
+            <!-- Vector 1: PROCESS_BLACKLIST_HIT -->
+            <div class="vector-card card-sev-critical">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">PROCESS_BLACKLIST_HIT</span>
+                  <span class="badge-severity badge-critical">50 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates detection of unauthorized process by native companion agent.
+                </p>
+                <div style="margin-top: 0.5rem;">
+                  <select id="param-process-name" class="form-select" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                    <option value="cheatengine-x86_64.exe">Cheat Engine (cheatengine.exe)</option>
+                    <option value="Discord.exe">Discord Overlay (Discord.exe)</option>
+                    <option value="obs64.exe">OBS Studio (obs64.exe)</option>
+                    <option value="AnyDesk.exe">AnyDesk Remote Tool (AnyDesk.exe)</option>
+                    <option value="wireshark.exe">Wireshark Packet Sniffer</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm btn-fire-vector" data-type="PROCESS_BLACKLIST_HIT" data-sev="CRITICAL">
+                Trigger Blacklist Hit
+              </button>
+            </div>
+
+            <!-- Vector 2: INJECTED_DLL_DETECTED -->
+            <div class="vector-card card-sev-critical">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">INJECTED_DLL_DETECTED</span>
+                  <span class="badge-severity badge-critical">50 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates unverified dynamic library hook injected into browser process.
+                </p>
+                <div style="margin-top: 0.5rem;">
+                  <select id="param-dll-name" class="form-select" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                    <option value="d3d9_hook.dll">d3d9_hook.dll (Direct3D Hook)</option>
+                    <option value="speedhack.dll">speedhack.dll (Timer Hack)</option>
+                    <option value="easyhook64.dll">easyhook64.dll (API Interceptor)</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm btn-fire-vector" data-type="INJECTED_DLL_DETECTED" data-sev="CRITICAL">
+                Trigger Injected DLL
+              </button>
+            </div>
+
+            <!-- Vector 3: MULTIPLE_DISPLAYS_DETECTED -->
+            <div class="vector-card card-sev-critical">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">MULTIPLE_DISPLAYS</span>
+                  <span class="badge-severity badge-critical">40 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates secondary display connected or HDMI hardware splitter.
+                </p>
+                <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                  Screens: 2 Extended Displays (DisplayPort + HDMI)
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm btn-fire-vector" data-type="MULTIPLE_DISPLAYS_DETECTED" data-sev="CRITICAL">
+                Trigger Multi-Display
+              </button>
+            </div>
+
+            <!-- Vector 4: DISPLAY_TOPOLOGY_CHANGED -->
+            <div class="vector-card card-sev-critical">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">TOPOLOGY_CHANGED</span>
+                  <span class="badge-severity badge-critical">40 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates screen resolution or display configuration switch mid-exam.
+                </p>
+                <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                  Resolution: 1920x1080 → 3840x2160 (Cloned)
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm btn-fire-vector" data-type="DISPLAY_TOPOLOGY_CHANGED" data-sev="CRITICAL">
+                Trigger Topology Change
+              </button>
+            </div>
+
+            <!-- Vector 5: VIRTUAL_CAMERA_DETECTED -->
+            <div class="vector-card card-sev-critical">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">VIRTUAL_CAMERA</span>
+                  <span class="badge-severity badge-critical">35 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates synthetic webcam stream originating from OBS / ManyCam.
+                </p>
+                <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.5rem;">
+                  Device Label: "OBS Virtual Camera"
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm btn-fire-vector" data-type="VIRTUAL_CAMERA_DETECTED" data-sev="CRITICAL">
+                Trigger Virtual Camera
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group: HIGH SEVERITY VIOLATIONS -->
+        <div style="margin-bottom: 1.5rem;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--severity-high); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.6rem;">
+            High Severity Violations (Weight 15 - 20 | Auto Action: Warn / Flag)
+          </div>
+          <div class="vector-grid">
+            <!-- Vector 6: TAB_BLUR -->
+            <div class="vector-card card-sev-high">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">TAB_BLUR</span>
+                  <span class="badge-severity badge-high">15 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates Alt+Tab, window minimization, or browser focus loss.
+                </p>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="TAB_BLUR" data-sev="HIGH">
+                Trigger Tab Blur (Alt+Tab)
+              </button>
+            </div>
+
+            <!-- Vector 7: FULLSCREEN_EXIT -->
+            <div class="vector-card card-sev-high">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">FULLSCREEN_EXIT</span>
+                  <span class="badge-severity badge-high">15 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates Escape key press or exiting fullscreen exam lockdown.
+                </p>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="FULLSCREEN_EXIT" data-sev="HIGH">
+                Trigger Fullscreen Exit
+              </button>
+            </div>
+
+            <!-- Vector 8: ZERO_FACE_DETECTED -->
+            <div class="vector-card card-sev-high">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">ZERO_FACE_DETECTED</span>
+                  <span class="badge-severity badge-high">20 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates candidate leaving desk or camera view being obstructed.
+                </p>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="ZERO_FACE_DETECTED" data-sev="HIGH">
+                Trigger Zero Face (Leave Desk)
+              </button>
+            </div>
+
+            <!-- Vector 9: MULTIPLE_FACES_DETECTED -->
+            <div class="vector-card card-sev-high">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">MULTIPLE_FACES</span>
+                  <span class="badge-severity badge-high">20 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates an unauthorized secondary person appearing in webcam frame.
+                </p>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="MULTIPLE_FACES_DETECTED" data-sev="HIGH">
+                Trigger 2nd Person in Frame
+              </button>
+            </div>
+
+            <!-- Vector 10: HEAD_POSE_AWAY -->
+            <div class="vector-card card-sev-high">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">HEAD_POSE_AWAY</span>
+                  <span class="badge-severity badge-high">15 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates candidate gaze deviating off-screen for > 3.0s.
+                </p>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="HEAD_POSE_AWAY" data-sev="HIGH">
+                Trigger Looking Away
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group: MEDIUM & LOW SEVERITY VIOLATIONS -->
+        <div>
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--severity-medium); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.6rem;">
+            Medium & Low Violations (Weight 5 - 10 | Auto Action: Log / Block)
+          </div>
+          <div class="vector-grid">
+            <!-- Vector 11: SUSPICIOUS_AUDIO_LEVEL -->
+            <div class="vector-card card-sev-medium">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">SUSPICIOUS_AUDIO</span>
+                  <span class="badge-severity badge-medium">10 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates speech, whisper, or phone call audio burst above threshold.
+                </p>
+                <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <input type="range" id="param-audio-level" min="30" max="95" value="75" style="width: 100%;">
+                  <span class="mono text-muted" id="disp-audio-val" style="font-size: 0.75rem;">75%</span>
+                </div>
+              </div>
+              <button class="btn btn-warning btn-sm btn-fire-vector" data-type="SUSPICIOUS_AUDIO_LEVEL" data-sev="MEDIUM">
+                Trigger Audio Burst
+              </button>
+            </div>
+
+            <!-- Vector 12: CLIPBOARD_VIOLATION -->
+            <div class="vector-card card-sev-low">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">CLIPBOARD_VIOLATION</span>
+                  <span class="badge-severity badge-low">5 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates unauthorized copy/paste action (Ctrl+C / Ctrl+V).
+                </p>
+              </div>
+              <button class="btn btn-secondary btn-sm btn-fire-vector" data-type="CLIPBOARD_VIOLATION" data-sev="LOW">
+                Trigger Clipboard Copy/Paste
+              </button>
+            </div>
+
+            <!-- Vector 13: CONTEXT_MENU_ATTEMPT -->
+            <div class="vector-card card-sev-low">
+              <div>
+                <div class="flex-between">
+                  <span class="mono" style="font-weight: 700; color: #fff; font-size: 0.85rem;">CONTEXT_MENU_ATTEMPT</span>
+                  <span class="badge-severity badge-low">5 pts</span>
+                </div>
+                <p class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem;">
+                  Simulates candidate attempting to open right-click inspector context menu.
+                </p>
+              </div>
+              <button class="btn btn-secondary btn-sm btn-fire-vector" data-type="CONTEXT_MENU_ATTEMPT" data-sev="LOW">
+                Trigger Right Click Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Real-time Payload Inspector & Socket Response Log -->
+      <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Outgoing Payload Inspector -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div class="flex-between" style="margin-bottom: 0.75rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">Socket Payload Inspector</div>
+            <span class="badge-severity badge-low" id="inspector-status-badge">READY</span>
+          </div>
+          <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.75rem;">
+            Exact PRD IncidentEvent JSON schema dispatched over the wire:
+          </p>
+          <pre id="payload-inspector-box" class="log-terminal" style="height: 180px; color: #34d399;"></pre>
+        </div>
+
+        <!-- Server Evaluation & Response Terminal -->
+        <div class="glass-panel" style="padding: 1.25rem;">
+          <div class="flex-between" style="margin-bottom: 0.75rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: #fff;">Real-Time Scoring Engine Log</div>
+            <button class="btn btn-secondary btn-sm" id="btn-clear-logs" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">
+              Clear Logs
+            </button>
+          </div>
+          <div class="log-terminal" id="response-log-box">
+            <div class="log-entry" style="color: var(--text-muted);">
+              [System] Cheat Simulator initialized. Select any attack vector on the left to fire a test violation.
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Hidden Synthetic Snapshot Canvas Generator -->
+  <canvas id="synthetic-canvas" width="320" height="240" style="display: none;"></canvas>
+
+  <!-- Scripts -->
+  <script src="../static/js/proctor_socket.js"></script>
+
+  <script>
+    /**
+     * Cheat Simulator Playground Controller
+     */
+    let socket = null;
+    const simSessionId = document.getElementById('sim-session-id');
+    const simCandidateId = document.getElementById('sim-candidate-id');
+    const simCandidateName = document.getElementById('sim-candidate-name');
+    const simChannelSelect = document.getElementById('sim-channel-select');
+    const simWsBadge = document.getElementById('sim-ws-badge');
+
+    const payloadInspectorBox = document.getElementById('payload-inspector-box');
+    const responseLogBox = document.getElementById('response-log-box');
+    const syntheticCanvas = document.getElementById('synthetic-canvas');
+    const synthCtx = syntheticCanvas.getContext('2d');
+
+    const paramAudioLevel = document.getElementById('param-audio-level');
+    const dispAudioVal = document.getElementById('disp-audio-val');
+
+    paramAudioLevel.addEventListener('input', () => {
+      dispAudioVal.textContent = `${paramAudioLevel.value}%`;
+    });
+
+    // 1. WebSocket Channel Connection
+    function connectSimulator() {
+      if (socket) socket.disconnect();
+
+      const sessId = simSessionId.value.trim() || 'default';
+      const candId = simCandidateId.value.trim() || 'cand_sim_01';
+      const channel = simChannelSelect.value;
+
+      simWsBadge.innerHTML = '<span class="pulse-dot" style="background:#f59e0b;"></span> Connecting...';
+
+      socket = new ProctorSocket({
+        role: channel === 'companion' ? 'companion' : 'candidate',
+        sessionId: sessId,
+        candidateId: candId,
+        candidateName: simCandidateName.value.trim(),
+        onConnect: () => {
+          simWsBadge.innerHTML = '<span class="pulse-dot"></span> Socket Connected';
+          simWsBadge.style.color = '#10b981';
+          logTerminal('INFO', `Connected to session ${sessId} as ${candId} (${channel} channel)`);
+        },
+        onDisconnect: () => {
+          simWsBadge.innerHTML = '<span class="pulse-dot" style="background:#ef4444;"></span> Disconnected';
+          simWsBadge.style.color = '#ef4444';
+          logTerminal('WARN', 'WebSocket disconnected.');
+        },
+        onMessage: (msg) => {
+          handleIncomingMessage(msg);
+        }
+      });
+
+      socket.connect();
+    }
+
+    document.getElementById('btn-reconnect-sim').addEventListener('click', connectSimulator);
+    simChannelSelect.addEventListener('change', connectSimulator);
+
+    // 2. Generate Synthetic Snapshot Frame based on Violation Vector
+    function generateSyntheticSnapshot(type) {
+      synthCtx.fillStyle = '#080d1a';
+      synthCtx.fillRect(0, 0, 320, 240);
+
+      // Scanline grid
+      synthCtx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      for (let y = 0; y < 240; y += 12) {
+        synthCtx.beginPath();
+        synthCtx.moveTo(0, y);
+        synthCtx.lineTo(320, y);
+        synthCtx.stroke();
+      }
+
+      if (type === 'ZERO_FACE_DETECTED') {
+        // Empty room / empty chair
+        synthCtx.fillStyle = '#1e293b';
+        synthCtx.fillRect(80, 160, 160, 70); // Desk
+        synthCtx.fillStyle = '#334155';
+        synthCtx.fillRect(130, 90, 60, 70); // Empty chair back
+        synthCtx.fillStyle = '#ef4444';
+        synthCtx.font = '12px monospace';
+        synthCtx.textAlign = 'center';
+        synthCtx.fillText('[ZERO FACES DETECTED]', 160, 50);
+
+      } else if (type === 'MULTIPLE_FACES_DETECTED') {
+        // Two heads
+        synthCtx.fillStyle = '#38bdf8';
+        synthCtx.beginPath();
+        synthCtx.arc(105, 120, 38, 0, Math.PI * 2);
+        synthCtx.fill();
+        synthCtx.fillStyle = '#f87171';
+        synthCtx.beginPath();
+        synthCtx.arc(215, 120, 38, 0, Math.PI * 2);
+        synthCtx.fill();
+        synthCtx.fillStyle = '#ef4444';
+        synthCtx.font = '12px monospace';
+        synthCtx.textAlign = 'center';
+        synthCtx.fillText('[MULTIPLE PERSONS IN FRAME]', 160, 40);
+
+      } else if (type === 'HEAD_POSE_AWAY') {
+        // Head turned sideways
+        synthCtx.fillStyle = '#fbbf24';
+        synthCtx.beginPath();
+        synthCtx.ellipse(160, 120, 35, 45, Math.PI / 4, 0, Math.PI * 2);
+        synthCtx.fill();
+        synthCtx.font = '12px monospace';
+        synthCtx.textAlign = 'center';
+        synthCtx.fillText('[GAZE DEVIATED: LOOKING AWAY]', 160, 40);
+
+      } else if (type === 'VIRTUAL_CAMERA_DETECTED') {
+        // OBS logo style
+        synthCtx.fillStyle = '#3b82f6';
+        synthCtx.font = '14px monospace';
+        synthCtx.textAlign = 'center';
+        synthCtx.fillText('OBS Virtual Camera Loopback', 160, 110);
+        synthCtx.fillStyle = '#ef4444';
+        synthCtx.fillText('[VIRTUAL STREAM DETECTED]', 160, 140);
+
+      } else {
+        // Default standard silhouette with incident banner
+        synthCtx.fillStyle = '#1e293b';
+        synthCtx.beginPath();
+        synthCtx.arc(160, 110, 42, 0, Math.PI * 2);
+        synthCtx.fill();
+        synthCtx.fillStyle = '#ef4444';
+        synthCtx.font = '11px monospace';
+        synthCtx.textAlign = 'center';
+        synthCtx.fillText(`VIOLATION: ${type}`, 160, 35);
+      }
+
+      // Bottom Watermark
+      synthCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      synthCtx.fillRect(0, 215, 320, 25);
+      synthCtx.font = '10px monospace';
+      synthCtx.fillStyle = '#38bdf8';
+      synthCtx.textAlign = 'left';
+      synthCtx.fillText(`SIM | ${simCandidateId.value} | ${new Date().toLocaleTimeString()}`, 8, 232);
+
+      return syntheticCanvas.toDataURL('image/jpeg', 0.65);
+    }
+
+    // 3. Trigger Violation Vector
+    function triggerSimulationVector(eventType, severity) {
+      const sessId = simSessionId.value.trim() || 'default';
+      const candId = simCandidateId.value.trim() || 'cand_sim_01';
+
+      let metadata = {
+        simulation: true,
+        source: 'Simulator-Playground'
+      };
+
+      if (eventType === 'PROCESS_BLACKLIST_HIT') {
+        metadata.processName = document.getElementById('param-process-name').value;
+        metadata.message = `Prohibited process detected running: ${metadata.processName}`;
+      } else if (eventType === 'INJECTED_DLL_DETECTED') {
+        metadata.dllName = document.getElementById('param-dll-name').value;
+        metadata.message = `Injected unverified DLL module: ${metadata.dllName}`;
+      } else if (eventType === 'MULTIPLE_DISPLAYS_DETECTED') {
+        metadata.displayCount = 2;
+        metadata.message = 'Multiple monitors detected. Disconnect external displays.';
+      } else if (eventType === 'DISPLAY_TOPOLOGY_CHANGED') {
+        metadata.change = 'Screen resolution switched mid-session';
+        metadata.message = 'Display topology configuration altered.';
+      } else if (eventType === 'VIRTUAL_CAMERA_DETECTED') {
+        metadata.virtualLabel = 'OBS Virtual Camera';
+        metadata.message = 'Virtual camera device detected in video stream.';
+      } else if (eventType === 'TAB_BLUR') {
+        metadata.message = 'Candidate switched tabs or minimized exam window.';
+      } else if (eventType === 'FULLSCREEN_EXIT') {
+        metadata.message = 'Candidate exited required fullscreen exam lockdown.';
+      } else if (eventType === 'ZERO_FACE_DETECTED') {
+        metadata.message = 'Zero faces detected in camera frame.';
+      } else if (eventType === 'MULTIPLE_FACES_DETECTED') {
+        metadata.message = 'Multiple persons detected in camera frame.';
+      } else if (eventType === 'HEAD_POSE_AWAY') {
+        metadata.message = 'Candidate head turned away from display.';
+      } else if (eventType === 'SUSPICIOUS_AUDIO_LEVEL') {
+        metadata.volume = parseInt(paramAudioLevel.value, 10);
+        metadata.message = `Suspicious audio detected (volume: ${metadata.volume}%)`;
+      } else if (eventType === 'CLIPBOARD_VIOLATION') {
+        metadata.message = 'Prohibited clipboard copy/paste attempt prevented.';
+      } else if (eventType === 'CONTEXT_MENU_ATTEMPT') {
+        metadata.message = 'Prohibited right-click context menu attempt prevented.';
+      }
+
+      // Generate synthetic frame
+      const snapshot = generateSyntheticSnapshot(eventType);
+
+      const payload = {
+        sessionId: sessId,
+        candidateId: candId,
+        timestamp: new Date().toISOString(),
+        severity: severity,
+        eventType: eventType,
+        metadata: metadata,
+        snapshotFrame: snapshot
+      };
+
+      // Display in Payload Inspector
+      payloadInspectorBox.textContent = JSON.stringify(payload, null, 2);
+
+      // Send via socket
+      if (socket && socket.isConnected) {
+        socket.sendIncident(payload);
+        logTerminal('SENT', `Dispatched [${severity}] ${eventType}`);
+      } else {
+        logTerminal('WARN', 'Socket not open, attempted send via fallback mesh.');
+        if (socket) socket.sendIncident(payload);
+      }
+    }
+
+    // Bind Button Clicks
+    document.querySelectorAll('.btn-fire-vector').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.getAttribute('data-type');
+        const sev = btn.getAttribute('data-sev');
+        triggerSimulationVector(type, sev);
+      });
+    });
+
+    // 4. Automation Sequences
+    // Sequence A: 3-Strike Warning Lockout (Fires 3x TAB_BLUR in succession)
+    document.getElementById('btn-seq-strike3').addEventListener('click', async () => {
+      logTerminal('SCRIPT', '--- Starting 3-Strike Warning Lockout Sequence ---');
+      for (let i = 1; i <= 3; i++) {
+        logTerminal('SCRIPT', `Firing Strike ${i} / 3: TAB_BLUR...`);
+        triggerSimulationVector('TAB_BLUR', 'HIGH');
+        await new Promise(r => setTimeout(r, 1800));
+      }
+      logTerminal('SCRIPT', '--- Completed 3-Strike Sequence (Candidate should now be LOCKED) ---');
+    });
+
+    // Sequence B: Gradual Escalation (Low → Critical)
+    document.getElementById('btn-seq-escalate').addEventListener('click', async () => {
+      logTerminal('SCRIPT', '--- Starting Gradual Escalation Sequence ---');
+      const sequence = [
+        { type: 'CONTEXT_MENU_ATTEMPT', sev: 'LOW' },
+        { type: 'CLIPBOARD_VIOLATION', sev: 'LOW' },
+        { type: 'SUSPICIOUS_AUDIO_LEVEL', sev: 'MEDIUM' },
+        { type: 'HEAD_POSE_AWAY', sev: 'HIGH' },
+        { type: 'TAB_BLUR', sev: 'HIGH' },
+        { type: 'PROCESS_BLACKLIST_HIT', sev: 'CRITICAL' }
+      ];
+
+      for (const item of sequence) {
+        logTerminal('SCRIPT', `Escalation Step: [${item.sev}] ${item.type}`);
+        triggerSimulationVector(item.type, item.sev);
+        await new Promise(r => setTimeout(r, 1600));
+      }
+      logTerminal('SCRIPT', '--- Gradual Escalation Finished ---');
+    });
+
+    // Candidate Reset
+    document.getElementById('btn-reset-candidate').addEventListener('click', async () => {
+      const sessId = simSessionId.value.trim() || 'default';
+      const candId = simCandidateId.value.trim() || 'cand_sim_01';
+
+      try {
+        const res = await fetch(`/api/sessions/${encodeURIComponent(sessId)}/candidates/${encodeURIComponent(candId)}/unlock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Candidate status reset by Simulator' })
+        });
+        if (res.ok) {
+          logTerminal('SUCCESS', `Candidate ${candId} unlocked and state reset.`);
+        }
+      } catch (err) {
+        logTerminal('ERROR', `Reset failed: ${err.message}`);
+      }
+    });
+
+    // 5. Terminal Logger & Incoming Messages
+    function handleIncomingMessage(msg) {
+      if (!msg) return;
+
+      if (msg.type === 'command') {
+        logTerminal('RECV-CMD', `Command from Proctor: ${msg.action} | Reason: ${msg.reason || msg.message}`);
+      } else if (msg.type === 'sync_status') {
+        logTerminal('STATUS', `Status Sync: ${msg.status} | Risk: ${msg.riskScore} | Warnings: ${msg.warningCount}`);
+      } else if (msg.type === 'incident_reported') {
+        const evalData = msg.evaluation || {};
+        logTerminal('EVAL', `Score: ${msg.riskScore} | AutoAction: ${evalData.autoAction || 'NONE'} | Locked: ${evalData.shouldLock} | Strikes: ${evalData.highWarningCount || 0}`);
+      } else {
+        logTerminal('RECV', `Message type [${msg.type}]: ${JSON.stringify(msg)}`);
+      }
+    }
+
+    function logTerminal(level, text) {
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+
+      let color = '#38bdf8';
+      if (level === 'SENT') color = '#34d399';
+      if (level === 'RECV-CMD' || level === 'WARN') color = '#fbbf24';
+      if (level === 'ERROR') color = '#ef4444';
+      if (level === 'EVAL') color = '#c084fc';
+
+      div.innerHTML = `<span style="color: var(--text-muted);">[${time}]</span> <span style="font-weight: 700; color: ${color};">[${level}]</span> ${text}`;
+      responseLogBox.appendChild(div);
+      responseLogBox.scrollTop = responseLogBox.scrollHeight;
+    }
+
+    document.getElementById('btn-clear-logs').addEventListener('click', () => {
+      responseLogBox.innerHTML = '';
+      logTerminal('INFO', 'Logs cleared.');
+    });
+
+    // Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      connectSimulator();
+    });
+  </script>
+</body>
+</html>
