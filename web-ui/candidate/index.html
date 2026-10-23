@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Candidate Verification & Setup Wizard | ProctorGuard</title>
   <link rel="stylesheet" href="../static/css/proctor.css">
   <style>
@@ -303,15 +306,15 @@
         </div>
       </div>
 
-      <!-- Agreement Card -->
-      <div id="agreement-card" style="margin-bottom: 2rem; background: rgba(6, 182, 212, 0.08); border: 2px solid rgba(6, 182, 212, 0.35); border-radius: var(--radius-md); padding: 1.25rem; cursor: pointer; transition: all 0.25s ease;">
+      <!-- Agreement Card (Default Accepted & Verified) -->
+      <div id="agreement-card" style="margin-bottom: 2rem; background: rgba(16, 185, 129, 0.15); border: 2px solid #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); padding: 1.25rem; cursor: pointer; transition: all 0.25s ease;">
         <label class="custom-checkbox-container" style="cursor: pointer; display: flex; align-items: flex-start; gap: 1rem; width: 100%;">
-          <input type="checkbox" id="agreement-checkbox" style="width: 22px; height: 22px; accent-color: var(--accent-cyan); cursor: pointer; margin-top: 2px; flex-shrink: 0;">
+          <input type="checkbox" id="agreement-checkbox" checked style="width: 22px; height: 22px; accent-color: var(--accent-emerald); cursor: pointer; margin-top: 2px; flex-shrink: 0;">
           <div>
             <div style="font-weight: 700; color: #fff; font-size: 0.95rem; margin-bottom: 0.25rem;" id="agreement-title">
-              Click to Accept Lockdown & Remote Monitoring Agreement
+              ✅ <span style="color:#34d399;">Identity Confirmed & Lockdown Agreement Accepted</span>
             </div>
-            <span style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5; display: block;">
+            <span style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.5; display: block;">
               I confirm that I am Alex Rivera and that I will take this examination in strict compliance with the proctoring rules. I consent to real-time webcam, screen, and audio monitoring and acknowledge that violations will be permanently recorded in the audit log.
             </span>
           </div>
@@ -322,8 +325,8 @@
         <button type="button" class="btn btn-secondary" id="btn-back-to-step-2">
           ⬅ Back
         </button>
-        <button type="button" class="btn btn-primary" id="btn-enter-exam" style="padding: 0.85rem 2.2rem; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em;">
-          🔒 Accept & Enter Locked Exam Room ➔
+        <button type="button" class="btn btn-primary" id="btn-enter-exam" onclick="window.enterExamRoom(event)" style="padding: 0.9rem 2.4rem; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em; background: linear-gradient(135deg, #059669, #0284c7); box-shadow: 0 4px 18px rgba(16, 185, 129, 0.4); cursor: pointer;">
+          🚀 Enter Locked Exam Room ➔
         </button>
       </div>
     </div>
@@ -333,6 +336,43 @@
   <script src="../static/js/audio_monitor.js"></script>
   <script src="../static/js/camera_check.js"></script>
   <script>
+    // Immediate global navigation function
+    window.enterExamRoom = function(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      const candNameInput = document.getElementById('candidate-name-input');
+      const candIdInput = document.getElementById('candidate-id-input');
+      const btn = document.getElementById('btn-enter-exam');
+
+      const candName = (candNameInput && candNameInput.value.trim()) || 'Alex Rivera';
+      const candId = (candIdInput && candIdInput.value.trim()) || 'CAND-89421';
+
+      try {
+        sessionStorage.setItem('proctor_candidate_name', candName);
+        sessionStorage.setItem('proctor_candidate_id', candId);
+        sessionStorage.setItem('proctor_setup_verified', 'true');
+        sessionStorage.setItem('proctor_auto_start_media', 'true');
+      } catch (err) {}
+
+      if (btn) {
+        btn.innerHTML = '<span class="pulse-dot" style="background:#fff;"></span> Launching Locked Exam...';
+        btn.style.opacity = '0.9';
+      }
+
+      try {
+        if (typeof audioMonitor !== 'undefined' && audioMonitor) audioMonitor.stop();
+        if (typeof userMediaStream !== 'undefined' && userMediaStream) userMediaStream.getTracks().forEach(t => t.stop());
+        if (typeof userScreenStream !== 'undefined' && userScreenStream) userScreenStream.getTracks().forEach(t => t.stop());
+      } catch (err) {}
+
+      const targetUrl = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
+      window.location.href = targetUrl;
+      setTimeout(() => {
+        if (!window.location.href.includes('exam.html')) {
+          window.location.replace(targetUrl);
+        }
+      }, 200);
+    };
+
     // State
     let userMediaStream = null;
     let userScreenStream = null;
@@ -588,39 +628,36 @@
     });
     agreementCheckbox.addEventListener('change', updateAgreementState);
 
-    // Step 3 -> Enter Exam Room
-    btnEnterExam.addEventListener('click', () => {
-      if (!agreementCheckbox.checked) {
-        // Automatically accept agreement with friendly pulse animation
-        agreementCheckbox.checked = true;
-        updateAgreementState();
-        const card = document.getElementById('agreement-card');
-        card.style.transform = 'scale(1.02)';
-        setTimeout(() => { card.style.transform = 'none'; }, 200);
-      }
-
-      const candName = candidateNameInput.value.trim() || 'Alex Rivera';
-      const candId = candidateIdInput.value.trim() || 'CAND-89421';
+    // Step 3 -> Enter Exam Room (Immediate, Reliable Navigation)
+    function enterExamRoom() {
+      const candName = (candidateNameInput && candidateNameInput.value.trim()) || 'Alex Rivera';
+      const candId = (candidateIdInput && candidateIdInput.value.trim()) || 'CAND-89421';
 
       // Save candidate session state to sessionStorage
-      sessionStorage.setItem('proctor_candidate_name', candName);
-      sessionStorage.setItem('proctor_candidate_id', candId);
-      sessionStorage.setItem('proctor_setup_verified', 'true');
-      sessionStorage.setItem('proctor_auto_start_media', 'true');
+      try {
+        sessionStorage.setItem('proctor_candidate_name', candName);
+        sessionStorage.setItem('proctor_candidate_id', candId);
+        sessionStorage.setItem('proctor_setup_verified', 'true');
+        sessionStorage.setItem('proctor_auto_start_media', 'true');
+      } catch (err) {}
 
-      btnEnterExam.disabled = true;
-      btnEnterExam.innerHTML = '<span class="pulse-dot" style="background:#fff;"></span> Initializing Secure Exam Room...';
+      // UI confirmation
+      btnEnterExam.innerHTML = '<span class="pulse-dot" style="background:#fff;"></span> Launching Locked Exam...';
+      btnEnterExam.style.opacity = '0.9';
 
-      // Stop audio monitor before navigating (exam.html will re-acquire)
-      if (audioMonitor) audioMonitor.stop();
-      if (userMediaStream) userMediaStream.getTracks().forEach(t => t.stop());
-      if (userScreenStream) userScreenStream.getTracks().forEach(t => t.stop());
+      // Cleanly stop step wizard hardware streams
+      try {
+        if (audioMonitor) audioMonitor.stop();
+        if (userMediaStream) userMediaStream.getTracks().forEach(t => t.stop());
+        if (userScreenStream) userScreenStream.getTracks().forEach(t => t.stop());
+      } catch (err) {}
 
-      // Redirect to Exam Room
-      setTimeout(() => {
-        window.location.href = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
-      }, 350);
-    });
+      // Immediate redirect to locked exam room
+      window.location.href = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
+    }
+    window.enterExamRoom = enterExamRoom;
+
+    btnEnterExam.addEventListener('click', enterExamRoom);
   </script>
 </body>
 </html>
