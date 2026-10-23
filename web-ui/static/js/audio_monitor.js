@@ -61,7 +61,7 @@ class AudioMonitor {
       this.audioContext = new AudioCtx();
 
       if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+        this.audioContext.resume().catch(e => console.warn('AudioContext resume deferred until user gesture:', e));
       }
 
       this.analyser = this.audioContext.createAnalyser();
@@ -225,6 +225,20 @@ class AudioMonitor {
 
     this.highVolumeStartTime = null;
     this.highVolumeFrameCount = 0;
+  }
+
+  /**
+   * Safely resume AudioContext following a user interaction gesture.
+   */
+  async resumeContext() {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+        console.log('AudioMonitor: AudioContext resumed cleanly after user interaction.');
+      } catch (e) {
+        console.warn('AudioMonitor: Failed to resume AudioContext:', e);
+      }
+    }
   }
 }
 
