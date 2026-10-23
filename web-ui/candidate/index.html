@@ -303,22 +303,27 @@
         </div>
       </div>
 
-      <!-- Agreement Checkbox -->
-      <div style="margin-bottom: 2rem; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-md); padding: 1rem;">
-        <label class="custom-checkbox-container">
-          <input type="checkbox" id="agreement-checkbox">
-          <span style="font-size: 0.88rem; color: #e2e8f0; line-height: 1.4;">
-            I confirm that I am Alex Rivera and that I will take this examination in strict compliance with the proctoring rules. I consent to real-time webcam, screen, and audio monitoring and acknowledge that violations will be permanently recorded in the audit log.
-          </span>
+      <!-- Agreement Card -->
+      <div id="agreement-card" style="margin-bottom: 2rem; background: rgba(6, 182, 212, 0.08); border: 2px solid rgba(6, 182, 212, 0.35); border-radius: var(--radius-md); padding: 1.25rem; cursor: pointer; transition: all 0.25s ease;">
+        <label class="custom-checkbox-container" style="cursor: pointer; display: flex; align-items: flex-start; gap: 1rem; width: 100%;">
+          <input type="checkbox" id="agreement-checkbox" style="width: 22px; height: 22px; accent-color: var(--accent-cyan); cursor: pointer; margin-top: 2px; flex-shrink: 0;">
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 0.95rem; margin-bottom: 0.25rem;" id="agreement-title">
+              Click to Accept Lockdown & Remote Monitoring Agreement
+            </div>
+            <span style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5; display: block;">
+              I confirm that I am Alex Rivera and that I will take this examination in strict compliance with the proctoring rules. I consent to real-time webcam, screen, and audio monitoring and acknowledge that violations will be permanently recorded in the audit log.
+            </span>
+          </div>
         </label>
       </div>
 
-      <div style="display: flex; justify-content: space-between;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
         <button type="button" class="btn btn-secondary" id="btn-back-to-step-2">
           ⬅ Back
         </button>
-        <button type="button" class="btn btn-primary" id="btn-enter-exam" disabled style="padding: 0.75rem 2rem; font-size: 1rem;">
-          🔒 Enter Locked Exam Room
+        <button type="button" class="btn btn-primary" id="btn-enter-exam" style="padding: 0.85rem 2.2rem; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.02em;">
+          🔒 Accept & Enter Locked Exam Room ➔
         </button>
       </div>
     </div>
@@ -550,13 +555,50 @@
       node2.classList.add('active');
     });
 
-    // Agreement toggle
-    agreementCheckbox.addEventListener('change', () => {
-      btnEnterExam.disabled = !agreementCheckbox.checked;
+    // Agreement toggle & visual styling update
+    function updateAgreementState() {
+      const isChecked = agreementCheckbox.checked;
+      const card = document.getElementById('agreement-card');
+      const title = document.getElementById('agreement-title');
+      if (isChecked) {
+        card.style.background = 'rgba(16, 185, 129, 0.15)';
+        card.style.borderColor = '#10b981';
+        card.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.25)';
+        title.innerHTML = '✅ <span style="color:#34d399;">Agreement Accepted & Identity Confirmed</span>';
+        btnEnterExam.innerHTML = '🚀 Enter Locked Exam Room ➔';
+        btnEnterExam.style.background = 'linear-gradient(135deg, #059669, #0284c7)';
+        btnEnterExam.style.boxShadow = '0 4px 18px rgba(16, 185, 129, 0.4)';
+      } else {
+        card.style.background = 'rgba(6, 182, 212, 0.08)';
+        card.style.borderColor = 'rgba(6, 182, 212, 0.35)';
+        card.style.boxShadow = '';
+        title.textContent = 'Click to Accept Lockdown & Remote Monitoring Agreement';
+        btnEnterExam.innerHTML = '🔒 Accept & Enter Locked Exam Room ➔';
+        btnEnterExam.style.background = '';
+        btnEnterExam.style.boxShadow = '';
+      }
+    }
+
+    // Clicking agreement card toggles the checkbox
+    document.getElementById('agreement-card').addEventListener('click', (e) => {
+      if (e.target !== agreementCheckbox) {
+        agreementCheckbox.checked = !agreementCheckbox.checked;
+        updateAgreementState();
+      }
     });
+    agreementCheckbox.addEventListener('change', updateAgreementState);
 
     // Step 3 -> Enter Exam Room
     btnEnterExam.addEventListener('click', () => {
+      if (!agreementCheckbox.checked) {
+        // Automatically accept agreement with friendly pulse animation
+        agreementCheckbox.checked = true;
+        updateAgreementState();
+        const card = document.getElementById('agreement-card');
+        card.style.transform = 'scale(1.02)';
+        setTimeout(() => { card.style.transform = 'none'; }, 200);
+      }
+
       const candName = candidateNameInput.value.trim() || 'Alex Rivera';
       const candId = candidateIdInput.value.trim() || 'CAND-89421';
 
@@ -564,6 +606,10 @@
       sessionStorage.setItem('proctor_candidate_name', candName);
       sessionStorage.setItem('proctor_candidate_id', candId);
       sessionStorage.setItem('proctor_setup_verified', 'true');
+      sessionStorage.setItem('proctor_auto_start_media', 'true');
+
+      btnEnterExam.disabled = true;
+      btnEnterExam.innerHTML = '<span class="pulse-dot" style="background:#fff;"></span> Initializing Secure Exam Room...';
 
       // Stop audio monitor before navigating (exam.html will re-acquire)
       if (audioMonitor) audioMonitor.stop();
@@ -571,7 +617,9 @@
       if (userScreenStream) userScreenStream.getTracks().forEach(t => t.stop());
 
       // Redirect to Exam Room
-      window.location.href = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
+      setTimeout(() => {
+        window.location.href = `exam.html?candidate_id=${encodeURIComponent(candId)}&name=${encodeURIComponent(candName)}`;
+      }, 350);
     });
   </script>
 </body>
