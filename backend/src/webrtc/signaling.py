@@ -106,16 +106,13 @@ class SignalingManager:
         data: Dict[str, Any],
     ):
         """
-        Forwards WebRTC offer, answer, or ice-candidate from candidate to admin/proctors.
+        Forwards WebRTC signaling and live media telemetry from candidate to admin/proctors.
         """
         payload = {
+            **data,
             "type": data.get("type"),
             "sessionId": session_id,
             "candidateId": candidate_id,
-            "sdp": data.get("sdp"),
-            "candidate": data.get("candidate"),
-            "streamType": data.get("streamType", "webcam"),
-            "metadata": data.get("metadata", {}),
         }
         await self.broadcast_to_admins(session_id, payload)
 
