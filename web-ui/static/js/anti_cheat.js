@@ -83,14 +83,20 @@ class AntiCheat {
    */
   async requestFullscreen() {
     try {
-      const elem = document.documentElement;
+      const elem = document.documentElement || document.body;
       if (elem.requestFullscreen) {
         await elem.requestFullscreen();
       } else if (elem.webkitRequestFullscreen) {
         await elem.webkitRequestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        await elem.mozRequestFullScreen();
+      } else if (elem.msRequestFullscreen) {
+        await elem.msRequestFullscreen();
       }
+      return true;
     } catch (err) {
       console.warn('AntiCheat: Fullscreen request failed or was denied:', err);
+      return false;
     }
   }
 
@@ -163,8 +169,10 @@ class AntiCheat {
         });
       }
 
-      // Listen for display connect/disconnect
-      window.screen.addEventListener('change', this._boundHandleScreenChange);
+      // Listen for display connect/disconnect safely
+      if (typeof window.screen.addEventListener === 'function') {
+        window.screen.addEventListener('change', this._boundHandleScreenChange);
+      }
     }
 
     // 2. Fallback heuristic: check window screen availability
