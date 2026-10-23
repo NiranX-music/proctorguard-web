@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Active Examination Session | ProctorGuard Secure Environment</title>
   <link rel="stylesheet" href="../static/css/proctor.css">
   <style>
@@ -614,7 +617,7 @@
         <div>🤖 <strong>Gemini AI Audio Auditor:</strong> Background sounds are monitored; explanations are reviewed in real-time.</div>
         <div>🚫 <strong>Extension Protection:</strong> Injected scripts and browser extensions are automatically detected and blocked.</div>
       </div>
-      <button class="btn btn-primary" id="btn-enter-fullscreen-gate" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700; letter-spacing: 0.03em;">
+      <button class="btn btn-primary" id="btn-enter-fullscreen-gate" onclick="startFullscreenExam()" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700; letter-spacing: 0.03em; cursor: pointer;">
         Enter Fullscreen Mode to Begin Exam
       </button>
     </div>
@@ -1859,52 +1862,53 @@
 
     // --- 7. Compulsory Fullscreen & Lockdown Event Listeners ---
     function setupFullscreenAndLockdownGuards() {
-      // 1. Fullscreen Gate button handler - immediately responsive
+      // 1. Fullscreen Gate starter function (Immediately responsive)
+      window.startFullscreenExam = async function() {
+        hasStartedExam = true;
+        const gate = document.getElementById('fullscreen-gate');
+        if (gate) gate.style.display = 'none';
+
+        // Enter fullscreen mode directly in user gesture
+        try {
+          await antiCheat.requestFullscreen();
+        } catch (err) {
+          console.warn('Enter fullscreen request notice:', err);
+        }
+
+        // Request Entire Screen Share for Laptop Media Sharing
+        if (!userScreenStream) {
+          try {
+            await startLaptopScreenCapture();
+          } catch (scErr) {
+            console.warn('Screen share start notice:', scErr);
+          }
+        }
+
+        // Ensure Webcam and Voice Mic are active
+        if (!userMediaStream) {
+          try {
+            await initializeMedia();
+          } catch (mErr) {
+            console.warn('Media start notice:', mErr);
+          }
+        }
+
+        // Resume audio context upon user gesture
+        if (audioMonitor && typeof audioMonitor.resumeContext === 'function') {
+          audioMonitor.resumeContext();
+        }
+
+        // Start AntiCheat system
+        try {
+          antiCheat.start();
+        } catch (acErr) {
+          console.warn('AntiCheat start notice:', acErr);
+        }
+      };
+
       const gateBtn = document.getElementById('btn-enter-fullscreen-gate');
       if (gateBtn) {
-        gateBtn.addEventListener('click', async () => {
-          // Immediately hide modal and flag exam started
-          hasStartedExam = true;
-          const gate = document.getElementById('fullscreen-gate');
-          if (gate) gate.style.display = 'none';
-
-          // Enter fullscreen mode directly in user gesture
-          try {
-            await antiCheat.requestFullscreen();
-          } catch (err) {
-            console.warn('Enter fullscreen request notice:', err);
-          }
-
-          // Request Entire Screen Share for Laptop Media Sharing
-          if (!userScreenStream) {
-            try {
-              await startLaptopScreenCapture();
-            } catch (scErr) {
-              console.warn('Screen share start notice:', scErr);
-            }
-          }
-
-          // Ensure Webcam and Voice Mic are active
-          if (!userMediaStream) {
-            try {
-              await initializeMedia();
-            } catch (mErr) {
-              console.warn('Media start notice:', mErr);
-            }
-          }
-
-          // Resume audio context upon user gesture
-          if (audioMonitor && typeof audioMonitor.resumeContext === 'function') {
-            audioMonitor.resumeContext();
-          }
-
-          // Start AntiCheat system
-          try {
-            antiCheat.start();
-          } catch (acErr) {
-            console.warn('AntiCheat start notice:', acErr);
-          }
-        });
+        gateBtn.addEventListener('click', window.startFullscreenExam);
       }
 
       // 2. Re-enter Fullscreen button on violation overlay
