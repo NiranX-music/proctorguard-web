@@ -473,6 +473,15 @@ body {
   text-decoration: none;
 }
 
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+  filter: grayscale(40%);
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
   color: #fff;
@@ -710,15 +719,50 @@ body {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 240px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(16px);
+  width: 300px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
   overflow: hidden;
   z-index: 900;
-  transition: width 0.2s ease;
+  transition: width 0.25s ease;
+}
+
+.proctor-pip-tile.expanded {
+  width: 440px;
+}
+
+.proctor-pip-tabs {
+  display: flex;
+  background: rgba(2, 6, 23, 0.75);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.proctor-pip-tab {
+  flex: 1;
+  padding: 0.45rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.proctor-pip-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.proctor-pip-tab.active {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.12);
 }
 
 .proctor-pip-header {
@@ -730,6 +774,61 @@ body {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.proctor-pip-video-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #020617;
+  overflow: hidden;
+}
+
+.proctor-pip-video-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dual-video-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  background: #020617;
+}
+
+.screen-share-overlay-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  color: #38bdf8;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+}
+
+.screen-share-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 1rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  background: rgba(2, 6, 23, 0.95);
+  gap: 0.4rem;
 }
 
 .proctor-pip-video {
