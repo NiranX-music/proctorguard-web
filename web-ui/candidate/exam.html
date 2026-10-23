@@ -345,6 +345,10 @@
               <span class="text-emerald" id="status-fullscreen">Compulsory</span>
             </div>
             <div class="flex-between">
+              <span class="text-muted">Laptop Screen Capture:</span>
+              <span class="text-emerald" id="status-screen-capture">Entire Screen Active</span>
+            </div>
+            <div class="flex-between">
               <span class="text-muted">Extension Blocker:</span>
               <span class="text-emerald" id="status-extension">Active (0 Injected)</span>
             </div>
@@ -353,8 +357,8 @@
               <span class="text-emerald" id="status-ai-auditor">Active Listening</span>
             </div>
             <div class="flex-between">
-              <span class="text-muted">Audio Telemetry:</span>
-              <span class="text-emerald" id="status-audio">Live VU Active</span>
+              <span class="text-muted">Voice Mic Telemetry:</span>
+              <span class="text-emerald" id="status-audio">Live VU (Quiet)</span>
             </div>
             <div class="flex-between">
               <span class="text-muted">Face & Gaze Tracking:</span>
@@ -416,25 +420,74 @@
     </div>
   </div>
 
-  <!-- Picture-in-Picture Candidate Telemetry Tile -->
+  <!-- Picture-in-Picture Candidate Telemetry Tile (Webcam + Laptop Screen Sharing + Voice Mic) -->
   <div class="proctor-pip-tile" id="proctor-pip">
     <div class="proctor-pip-header">
       <div class="flex-gap-1">
         <span class="pulse-dot" style="background:#10b981;"></span>
-        <span>PROCTOR TELEMETRY</span>
+        <span style="font-weight:700;">PROCTOR MEDIA TELEMETRY</span>
       </div>
-      <span class="mono" style="font-size: 0.65rem;" id="pip-live-indicator">LIVE</span>
-    </div>
-
-    <div class="proctor-pip-video-wrap">
-      <video id="pip-webcam" autoplay playsinline muted></video>
-      <div class="face-bounding-box" id="pip-face-box"></div>
-      <div class="face-status-badge" id="pip-face-badge">
-        <span>●</span> <span id="pip-face-text">1 Face Detected</span>
+      <div class="flex-gap-1">
+        <button id="pip-toggle-expand" style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer; font-size:0.75rem; padding:1px 4px;" title="Toggle Expanded View">⛶</button>
+        <span class="mono" style="font-size: 0.65rem; color:#34d399;" id="pip-live-indicator">LIVE</span>
       </div>
     </div>
 
+    <!-- Media Mode Selector Tabs -->
+    <div class="proctor-pip-tabs">
+      <button class="proctor-pip-tab active" id="tab-pip-cam">🎥 Webcam</button>
+      <button class="proctor-pip-tab" id="tab-pip-screen">🖥️ Laptop Screen</button>
+      <button class="proctor-pip-tab" id="tab-pip-dual">🔲 Dual View</button>
+    </div>
+
+    <!-- Video Feed Viewport -->
+    <div class="proctor-pip-video-wrap" id="pip-viewport">
+      <!-- 1. Single Webcam View -->
+      <div id="view-webcam-wrap" style="width:100%; height:100%; position:relative;">
+        <video id="pip-webcam" autoplay playsinline muted></video>
+        <div class="face-bounding-box" id="pip-face-box"></div>
+        <div class="face-status-badge" id="pip-face-badge">
+          <span>●</span> <span id="pip-face-text">1 Face Detected</span>
+        </div>
+      </div>
+
+      <!-- 2. Single Screen Share View -->
+      <div id="view-screen-wrap" style="width:100%; height:100%; position:relative; display:none;">
+        <video id="pip-screen" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; background:#020617;"></video>
+        <div class="screen-share-overlay-badge" id="pip-screen-badge">
+          <span>🖥️</span> <span>Entire Screen Active</span>
+        </div>
+        <div class="screen-share-placeholder" id="pip-screen-placeholder" style="display:none;">
+          <span style="font-size:1.6rem;">🖥️</span>
+          <span>Laptop screen sharing not authorized</span>
+          <button class="btn btn-primary btn-sm" id="btn-pip-request-screen" style="margin-top:4px; font-size:0.72rem; padding:3px 8px;">
+            📺 Share Screen Now
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Dual Split View -->
+      <div id="view-dual-wrap" class="dual-video-grid" style="display:none; position:relative;">
+        <div style="position:relative; width:100%; height:100%; overflow:hidden;">
+          <video id="pip-dual-cam" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+          <span style="position:absolute; bottom:3px; left:3px; font-size:0.6rem; background:rgba(0,0,0,0.8); color:#fff; padding:1px 4px; border-radius:3px;">Cam</span>
+        </div>
+        <div style="position:relative; width:100%; height:100%; overflow:hidden; background:#000;">
+          <video id="pip-dual-screen" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain;"></video>
+          <span style="position:absolute; bottom:3px; left:3px; font-size:0.6rem; background:rgba(0,0,0,0.8); color:#38bdf8; padding:1px 4px; border-radius:3px;">Screen</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Telemetry & Voice Mic VU Meter -->
     <div class="proctor-pip-body">
+      <div class="flex-between" style="font-size: 0.72rem;">
+        <span class="text-muted" style="display:flex; align-items:center; gap:4px;">
+          <span>🎙️</span> <span id="pip-mic-status">Voice Mic Active:</span>
+        </span>
+        <span class="mono" id="pip-mic-db" style="color:#38bdf8; font-weight:700;">22 dB (Quiet)</span>
+      </div>
+
       <!-- Real-time VU volume meter -->
       <div class="vu-meter-container">
         <div class="vu-meter-track">
@@ -444,18 +497,19 @@
       </div>
     </div>
 
-    <!-- Quick Violation Testing & Simulation Toolbar -->
+    <!-- Quick Simulation & Media Tools Toolbar -->
     <div class="simulation-controls">
       <button class="simulation-btn" id="sim-away" title="Simulate Candidate Looking Away">Look Away</button>
       <button class="simulation-btn" id="sim-noface" title="Simulate Candidate Left Desk">Leave Desk</button>
       <button class="simulation-btn" id="sim-multiface" title="Simulate Second Person in Frame">2nd Face</button>
-      <button class="simulation-btn" id="sim-noise" style="background: rgba(168,85,247,0.25); border-color: #a855f7; color: #d8b4fe;" title="Simulate Noise Spike to Test Gemini AI Explanation Flow">🎙️ Test Sound AI</button>
-      <button class="simulation-btn" id="sim-ext" style="background: rgba(239,68,68,0.25); border-color: #ef4444; color: #fda4af;" title="Simulate Extension Injection">🚫 Test Extension</button>
+      <button class="simulation-btn" id="sim-noise" style="background: rgba(168,85,247,0.25); border-color: #a855f7; color: #d8b4fe;" title="Simulate Noise Spike to Test Gemini AI Explanation Flow">🎙️ Test AI</button>
+      <button class="simulation-btn" id="btn-reprompt-screen" style="background: rgba(6,182,212,0.2); border-color: #06b6d4; color: #67e8f9;" title="Re-sync Laptop Screen Sharing">📺 Share</button>
     </div>
   </div>
 
-  <!-- Hidden Working Canvas for Frame Analysis & Snapshot Capture -->
+  <!-- Hidden Working Canvases for Webcam & Laptop Screen Snapshot Capture -->
   <canvas id="analysis-canvas" width="640" height="480" style="display: none;"></canvas>
+  <canvas id="screen-analysis-canvas" width="640" height="360" style="display: none;"></canvas>
 
   <!-- Warning Modal (Server WARN command) -->
   <div class="warning-modal-backdrop" id="warning-modal" style="display: none;">
@@ -863,17 +917,42 @@
     const terminationScreen = document.getElementById('termination-screen');
     const terminationReasonText = document.getElementById('termination-reason-text');
 
+    // PiP & Media Telemetry DOM Elements
+    let userScreenStream = null;
+    let currentVolumeLevel = 0;
+    let currentAudioDb = 22;
+
     const pipWebcam = document.getElementById('pip-webcam');
+    const pipScreen = document.getElementById('pip-screen');
+    const pipDualCam = document.getElementById('pip-dual-cam');
+    const pipDualScreen = document.getElementById('pip-dual-screen');
+    const tabPipCam = document.getElementById('tab-pip-cam');
+    const tabPipScreen = document.getElementById('tab-pip-screen');
+    const tabPipDual = document.getElementById('tab-pip-dual');
+    const viewWebcamWrap = document.getElementById('view-webcam-wrap');
+    const viewScreenWrap = document.getElementById('view-screen-wrap');
+    const viewDualWrap = document.getElementById('view-dual-wrap');
+    const pipToggleExpand = document.getElementById('pip-toggle-expand');
+    const pipScreenPlaceholder = document.getElementById('pip-screen-placeholder');
+    const btnPipRequestScreen = document.getElementById('btn-pip-request-screen');
+    const btnRepromptScreen = document.getElementById('btn-reprompt-screen');
+
     const pipFaceBox = document.getElementById('pip-face-box');
     const pipFaceBadge = document.getElementById('pip-face-badge');
     const pipFaceText = document.getElementById('pip-face-text');
     const pipVuBar = document.getElementById('pip-vu-bar');
     const pipVuLabel = document.getElementById('pip-vu-label');
+    const pipMicStatus = document.getElementById('pip-mic-status');
+    const pipMicDb = document.getElementById('pip-mic-db');
+
     const analysisCanvas = document.getElementById('analysis-canvas');
     const analysisCtx = analysisCanvas.getContext('2d');
+    const screenAnalysisCanvas = document.getElementById('screen-analysis-canvas');
 
     const statusFullscreen = document.getElementById('status-fullscreen');
+    const statusScreenCapture = document.getElementById('status-screen-capture');
     const statusFace = document.getElementById('status-face');
+    const statusAudio = document.getElementById('status-audio');
     const statusWarningStrikes = document.getElementById('status-warning-strikes');
     const proctorConnBadge = document.getElementById('proctor-conn-badge');
 
@@ -903,6 +982,7 @@
       candidateName: candidateName,
       sessionId: sessionId,
       webcamVideoElement: pipWebcam,
+      screenVideoElement: pipScreen,
       maxWarnings: maxWarnings,
       socket: socket,
       onViolation: (incident) => {
@@ -926,11 +1006,11 @@
           analysisCtx.drawImage(pipWebcam, 0, 0, 320, 240);
 
           // Watermark timestamp & candidate ID
-          analysisCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          analysisCtx.fillStyle = 'rgba(0, 0, 0, 0.65)';
           analysisCtx.fillRect(0, 215, 320, 25);
           analysisCtx.font = '10px monospace';
           analysisCtx.fillStyle = '#38bdf8';
-          analysisCtx.fillText(`${candidateId} | ${new Date().toISOString()}`, 8, 232);
+          analysisCtx.fillText(`CAM | ${candidateId} | ${new Date().toISOString()}`, 8, 232);
 
           return analysisCanvas.toDataURL('image/jpeg', 0.65);
         }
@@ -940,10 +1020,36 @@
       return null;
     }
 
+    // Helper: Capture Laptop Screen snapshot frame with timestamp watermark
+    function captureScreenSnapshotFrame() {
+      try {
+        if (pipScreen && pipScreen.readyState >= 2 && userScreenStream) {
+          const sCanvas = screenAnalysisCanvas || analysisCanvas;
+          const sCtx = sCanvas.getContext('2d');
+          sCanvas.width = 480;
+          sCanvas.height = 270;
+          sCtx.drawImage(pipScreen, 0, 0, 480, 270);
+
+          // Watermark timestamp & candidate ID
+          sCtx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+          sCtx.fillRect(0, 245, 480, 25);
+          sCtx.font = '10px monospace';
+          sCtx.fillStyle = '#38bdf8';
+          sCtx.fillText(`SCREEN | ${candidateId} | ${new Date().toISOString()}`, 8, 262);
+
+          return sCanvas.toDataURL('image/jpeg', 0.55);
+        }
+      } catch (err) {
+        console.warn('Screen snapshot capture notice:', err);
+      }
+      return null;
+    }
+
     // Helper: Report Incident to Server
     function reportIncident(eventType, severity, message, extraMeta = {}) {
       if (isTerminated) return;
       const snapshot = captureSnapshotFrame();
+      const screenSnapshot = captureScreenSnapshotFrame();
       const payload = {
         sessionId: sessionId,
         candidateId: candidateId,
@@ -953,9 +1059,11 @@
         metadata: {
           message: message,
           questionIndex: currentQuestionIndex + 1,
+          hasScreenShare: !!userScreenStream,
           ...extraMeta
         },
-        snapshotFrame: snapshot
+        snapshotFrame: snapshot,
+        screenSnapshot: screenSnapshot
       };
       socket.sendIncident(payload);
     }
@@ -1055,13 +1163,29 @@
 
         userMediaStream = stream;
         pipWebcam.srcObject = stream;
+        if (pipDualCam) pipDualCam.srcObject = stream;
 
-        // Initialize Audio Monitor
+        // Initialize Audio Monitor with live VU level callback
         audioMonitor = new AudioMonitor({
           threshold: 32,
           sustainedDurationMs: 1600,
           vuBarElement: pipVuBar,
           vuLabelElement: pipVuLabel,
+          onLevelUpdate: (vol, rms) => {
+            currentVolumeLevel = vol;
+            currentAudioDb = Math.round(18 + (vol * 0.65));
+            let stateLabel = 'Quiet';
+            if (vol >= 45) stateLabel = 'Sound Spike';
+            else if (vol >= 14) stateLabel = 'Speaking';
+
+            if (pipMicDb) {
+              pipMicDb.textContent = `${currentAudioDb} dB (${stateLabel})`;
+              pipMicDb.style.color = vol >= 45 ? '#f87171' : (vol >= 14 ? '#38bdf8' : '#34d399');
+            }
+            if (statusAudio) {
+              statusAudio.textContent = `Live VU (${currentAudioDb} dB)`;
+            }
+          },
           onSuspiciousAudio: (incident) => {
             reportIncident('SUSPICIOUS_AUDIO_LEVEL', 'MEDIUM', incident.message, {
               volume: incident.volume,
@@ -1080,6 +1204,111 @@
         startMockVideoPreview();
       }
     }
+
+    // 5b. Laptop Screen Sharing Capture
+    async function startLaptopScreenCapture() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        console.warn('Screen capture not supported in this browser environment.');
+        return false;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            displaySurface: 'monitor',
+            cursor: 'always'
+          },
+          audio: false
+        });
+
+        const track = stream.getVideoTracks()[0];
+        const settings = (track && track.getSettings) ? track.getSettings() : {};
+
+        // Enforce Whole Screen / Monitor Sharing
+        if (settings.displaySurface && settings.displaySurface !== 'monitor') {
+          alert('⚠️ MANDATORY FULL-SCREEN SHARING: Please select "Entire Screen" in the browser prompt. Single window or tab sharing violates proctor integrity.');
+          stream.getTracks().forEach(t => t.stop());
+          if (statusScreenCapture) {
+            statusScreenCapture.textContent = 'Entire Screen Required';
+            statusScreenCapture.className = 'text-amber';
+          }
+          return false;
+        }
+
+        userScreenStream = stream;
+        if (pipScreen) pipScreen.srcObject = stream;
+        if (pipDualScreen) pipDualScreen.srcObject = stream;
+
+        if (pipScreenPlaceholder) pipScreenPlaceholder.style.display = 'none';
+        if (statusScreenCapture) {
+          statusScreenCapture.textContent = 'Entire Screen Active';
+          statusScreenCapture.className = 'text-emerald';
+        }
+
+        track.onended = () => {
+          userScreenStream = null;
+          if (statusScreenCapture) {
+            statusScreenCapture.textContent = 'Screen Sharing Ended';
+            statusScreenCapture.className = 'text-red';
+          }
+          if (pipScreenPlaceholder) pipScreenPlaceholder.style.display = 'flex';
+          reportIncident('DISPLAY_TOPOLOGY_CHANGED', 'HIGH', 'Candidate stopped laptop screen sharing stream.');
+        };
+
+        console.log('Laptop screen capture successfully initialized');
+        return true;
+      } catch (err) {
+        console.warn('Screen capture request notice:', err);
+        if (statusScreenCapture) {
+          statusScreenCapture.textContent = 'Screen Sharing Inactive';
+          statusScreenCapture.className = 'text-amber';
+        }
+        return false;
+      }
+    }
+
+    // PiP View Modes (Webcam / Laptop Screen / Dual View)
+    function setPiPView(mode) {
+      if (!tabPipCam || !tabPipScreen || !tabPipDual) return;
+      tabPipCam.classList.remove('active');
+      tabPipScreen.classList.remove('active');
+      tabPipDual.classList.remove('active');
+
+      if (viewWebcamWrap) viewWebcamWrap.style.display = 'none';
+      if (viewScreenWrap) viewScreenWrap.style.display = 'none';
+      if (viewDualWrap) viewDualWrap.style.display = 'none';
+
+      if (mode === 'cam') {
+        tabPipCam.classList.add('active');
+        if (viewWebcamWrap) viewWebcamWrap.style.display = 'block';
+      } else if (mode === 'screen') {
+        tabPipScreen.classList.add('active');
+        if (viewScreenWrap) viewScreenWrap.style.display = 'block';
+        if (pipScreenPlaceholder) {
+          pipScreenPlaceholder.style.display = userScreenStream ? 'none' : 'flex';
+        }
+      } else if (mode === 'dual') {
+        tabPipDual.classList.add('active');
+        if (viewDualWrap) viewDualWrap.style.display = 'grid';
+        const tile = document.getElementById('proctor-pip');
+        if (tile) tile.classList.add('expanded');
+        if (userMediaStream && pipDualCam) pipDualCam.srcObject = userMediaStream;
+        if (userScreenStream && pipDualScreen) pipDualScreen.srcObject = userScreenStream;
+      }
+    }
+
+    if (tabPipCam) tabPipCam.addEventListener('click', () => setPiPView('cam'));
+    if (tabPipScreen) tabPipScreen.addEventListener('click', () => setPiPView('screen'));
+    if (tabPipDual) tabPipDual.addEventListener('click', () => setPiPView('dual'));
+
+    if (pipToggleExpand) {
+      pipToggleExpand.addEventListener('click', () => {
+        const tile = document.getElementById('proctor-pip');
+        if (tile) tile.classList.toggle('expanded');
+      });
+    }
+
+    if (btnPipRequestScreen) btnPipRequestScreen.addEventListener('click', startLaptopScreenCapture);
+    if (btnRepromptScreen) btnRepromptScreen.addEventListener('click', startLaptopScreenCapture);
 
     function startMockVideoPreview() {
       let angle = 0;
@@ -1606,33 +1835,93 @@
       }
     });
 
+    // --- Continuous Media Frame & Audio Telemetry Broadcast to Proctor ---
+    setInterval(() => {
+      if (isExamLocked || isTerminated) return;
+      const webcamSnap = captureSnapshotFrame();
+      const screenSnap = captureScreenSnapshotFrame();
+
+      socket.send({
+        type: 'stream_telemetry',
+        candidateId: candidateId,
+        candidateName: candidateName,
+        sessionId: sessionId,
+        status: isExamLocked ? 'LOCKED' : (isTerminated ? 'TERMINATED' : 'ACTIVE'),
+        webcamSnapshot: webcamSnap,
+        screenSnapshot: screenSnap,
+        audioLevel: currentVolumeLevel,
+        audioDb: currentAudioDb,
+        faceStatus: faceDetectionMode,
+        warningCount: warningStrikes,
+        timestamp: new Date().toISOString()
+      });
+    }, 3500);
+
     // --- 7. Compulsory Fullscreen & Lockdown Event Listeners ---
-    function enforceFullscreenGuard() {
-      antiCheat.start();
-
-      // Fullscreen Gate button handler
-      document.getElementById('btn-enter-fullscreen-gate').addEventListener('click', async () => {
-        try {
-          await antiCheat.requestFullscreen();
+    function setupFullscreenAndLockdownGuards() {
+      // 1. Fullscreen Gate button handler - immediately responsive
+      const gateBtn = document.getElementById('btn-enter-fullscreen-gate');
+      if (gateBtn) {
+        gateBtn.addEventListener('click', async () => {
+          // Immediately hide modal and flag exam started
           hasStartedExam = true;
-          document.getElementById('fullscreen-gate').style.display = 'none';
-        } catch (err) {
-          alert('Please allow fullscreen mode to begin your secure examination.');
-        }
-      });
+          const gate = document.getElementById('fullscreen-gate');
+          if (gate) gate.style.display = 'none';
 
-      // Re-enter Fullscreen button on violation overlay
-      document.getElementById('btn-reenter-fullscreen').addEventListener('click', async () => {
-        try {
-          await antiCheat.requestFullscreen();
-        } catch (err) {
-          console.warn('Re-enter fullscreen failed:', err);
-        }
-      });
+          // Enter fullscreen mode directly in user gesture
+          try {
+            await antiCheat.requestFullscreen();
+          } catch (err) {
+            console.warn('Enter fullscreen request notice:', err);
+          }
 
-      // Strict continuous fullscreen listener
-      document.addEventListener('fullscreenchange', () => {
-        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+          // Request Entire Screen Share for Laptop Media Sharing
+          if (!userScreenStream) {
+            try {
+              await startLaptopScreenCapture();
+            } catch (scErr) {
+              console.warn('Screen share start notice:', scErr);
+            }
+          }
+
+          // Ensure Webcam and Voice Mic are active
+          if (!userMediaStream) {
+            try {
+              await initializeMedia();
+            } catch (mErr) {
+              console.warn('Media start notice:', mErr);
+            }
+          }
+
+          // Resume audio context upon user gesture
+          if (audioMonitor && typeof audioMonitor.resumeContext === 'function') {
+            audioMonitor.resumeContext();
+          }
+
+          // Start AntiCheat system
+          try {
+            antiCheat.start();
+          } catch (acErr) {
+            console.warn('AntiCheat start notice:', acErr);
+          }
+        });
+      }
+
+      // 2. Re-enter Fullscreen button on violation overlay
+      const reenterBtn = document.getElementById('btn-reenter-fullscreen');
+      if (reenterBtn) {
+        reenterBtn.addEventListener('click', async () => {
+          try {
+            await antiCheat.requestFullscreen();
+          } catch (err) {
+            console.warn('Re-enter fullscreen failed:', err);
+          }
+        });
+      }
+
+      // 3. Strict continuous fullscreen listener
+      const onFullscreenChange = () => {
+        const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
         if (isFull) {
           statusFullscreen.textContent = 'Enforced';
           statusFullscreen.className = 'text-emerald';
@@ -1647,30 +1936,34 @@
             reportIncident('FULLSCREEN_EXIT', 'HIGH', 'Candidate exited compulsory fullscreen exam display.');
           }
         }
-      });
+      };
+      document.addEventListener('fullscreenchange', onFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+      document.addEventListener('mozfullscreenchange', onFullscreenChange);
+      document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
-      // Window blur listener
+      // 4. Window blur listener
       window.addEventListener('blur', () => {
         if (hasStartedExam && !isExamLocked && !isTerminated) {
           reportIncident('TAB_BLUR', 'HIGH', 'Candidate switched tabs or minimized exam window.');
         }
       });
 
-      // Window visibility change
+      // 5. Window visibility change
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && hasStartedExam && !isExamLocked && !isTerminated) {
           reportIncident('TAB_BLUR', 'HIGH', 'Exam window hidden / candidate navigated to another application.');
         }
       });
 
-      // Prevent right-click context menu
+      // 6. Prevent right-click context menu
       document.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         reportIncident('CONTEXT_MENU_ATTEMPT', 'LOW', 'Candidate attempted to open right-click context menu.');
         return false;
       });
 
-      // Block critical shortcuts: F11, F12, Escape, DevTools, Clipboard
+      // 7. Block critical shortcuts: F11, F12, Escape, DevTools, Clipboard
       window.addEventListener('keydown', (e) => {
         // Block F11, F12, Escape
         if (['F11', 'F12', 'Escape'].includes(e.key)) {
@@ -1695,6 +1988,9 @@
         }
       }, true);
     }
+
+    // Initialize fullscreen & lockdown listeners immediately
+    setupFullscreenAndLockdownGuards();
 
     // 8. Question Renderer & Palette Navigation
     function renderPalette() {
@@ -1886,14 +2182,20 @@
     }, 1000);
 
     // 10. Startup Initialization
-    window.addEventListener('DOMContentLoaded', async () => {
+    async function initExamPage() {
       renderCurrentQuestion();
       renderPalette();
-      await initializeMedia();
-      enforceFullscreenGuard();
       scanForExtensions();
-      await checkGeminiConfig();
-    });
+      checkGeminiConfig();
+      // Initialize media asynchronously in the background so it never blocks UI or gate
+      initializeMedia().catch(e => console.warn('Background media init notice:', e));
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initExamPage);
+    } else {
+      initExamPage();
+    }
   </script>
 </body>
 </html>
