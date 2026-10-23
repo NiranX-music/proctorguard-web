@@ -682,6 +682,26 @@
         renderDashboard();
       }
 
+      // Live candidate stream telemetry (Webcam + Laptop Screen Share + Voice VU)
+      if (msg.type === 'stream_telemetry') {
+        let cand = candidatesMap.get(msg.candidateId) || {
+          candidateId: msg.candidateId,
+          name: msg.candidateName || msg.candidateId,
+          sessionId: msg.sessionId
+        };
+
+        if (msg.webcamSnapshot) cand.lastSnapshot = msg.webcamSnapshot;
+        if (msg.screenSnapshot) cand.screenSnapshot = msg.screenSnapshot;
+        if (msg.audioLevel !== undefined) cand.audioVolume = msg.audioLevel;
+        if (msg.audioDb !== undefined) cand.audioDb = msg.audioDb;
+        if (msg.status) cand.status = msg.status;
+        if (msg.warningCount !== undefined) cand.warningCount = msg.warningCount;
+        cand.lastSeen = Date.now();
+
+        candidatesMap.set(msg.candidateId, cand);
+        renderDashboard();
+      }
+
       // Warning issued sync
       if (msg.type === 'warning_issued') {
         const cand = candidatesMap.get(msg.candidateId);
@@ -858,15 +878,24 @@
                <span>Live Telemetry Active</span>
              </div>`;
 
+        const audioVol = c.audioVolume !== undefined ? c.audioVolume : (c.status === 'ACTIVE' ? 24 : 0);
+        const audioDbText = c.audioDb ? `${c.audioDb} dB` : (c.status === 'ACTIVE' ? '22 dB (Quiet)' : 'Muted');
+
         card.innerHTML = `
           <!-- Video Stream Tile -->
           <div class="video-stream-container">
             ${videoHtml}
+            ${c.screenSnapshot ? `
+              <div class="screen-pip-preview" title="Candidate Laptop Screen (Click to enlarge)" data-candidate="${c.candidateId}">
+                <img src="${c.screenSnapshot}" alt="Laptop Screen">
+              </div>
+            ` : ''}
             <div class="stream-overlay-badges">
               <span class="stream-status-pill">
                 <span class="pulse-dot" style="background: ${isTerminated ? '#64748b' : (isLocked ? '#ef4444' : '#10b981')};"></span>
                 ${c.status || 'ACTIVE'}
               </span>
+              ${c.screenSnapshot ? `<span style="font-size:0.65rem; background:rgba(6,182,212,0.25); color:#67e8f9; border:1px solid rgba(6,182,212,0.4); padding:2px 6px; border-radius:4px; font-weight:700;">🖥️ Screen Live</span>` : ''}
               <span class="risk-badge ${riskClass}">
                 Risk: ${score}
               </span>
@@ -887,14 +916,14 @@
 
             <!-- Volume VU Meter & Warnings -->
             <div class="flex-between" style="font-size: 0.75rem; color: var(--text-secondary);">
-              <span>Audio Level:</span>
-              <span class="mono">${c.status === 'ACTIVE' ? 'Normal (22 dB)' : 'Muted'}</span>
+              <span>Voice Mic Telemetry:</span>
+              <span class="mono" style="color:${audioVol >= 45 ? '#f87171' : (audioVol >= 15 ? '#38bdf8' : '#34d399')}; font-weight:700;">${audioDbText}</span>
             </div>
             <div class="vu-meter-container">
               <div class="vu-meter-track">
-                <div class="vu-meter-bar" style="width: ${c.status === 'ACTIVE' ? '28%' : '0%'};"></div>
+                <div class="vu-meter-bar" style="width: ${audioVol}%;"></div>
               </div>
-              <div class="vu-meter-label">${c.status === 'ACTIVE' ? '28%' : '0%'}</div>
+              <div class="vu-meter-label">${audioVol}%</div>
             </div>
 
             <div class="flex-between" style="font-size: 0.75rem; color: var(--text-secondary);">
@@ -946,8 +975,45 @@
           });
         }
 
+        const screenPip = card.querySelector('.screen-pip-preview');
+        if (screenPip && c.screenSnapshot) {
+          screenPip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openScreenPreviewModal(c.name || c.candidateId, c.screenSnapshot);
+          });
+        }
+
         candidateMatrix.appendChild(card);
       });
+    }
+
+    function openScreenPreviewModal(name, src) {
+      let modal = document.getElementById('screen-preview-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'screen-preview-modal';
+        modal.className = 'modal-backdrop';
+        modal.style.zIndex = '99999';
+        modal.innerHTML = `
+          <div style="max-width: 960px; width: 95%; background: #0f172a; border: 2px solid var(--accent-cyan); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: 0 0 50px rgba(6,182,212,0.4);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+              <div style="font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <span>🖥️</span> <span id="screen-modal-candidate-name">Laptop Screen Stream</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-close-screen-modal">✕ Close</button>
+            </div>
+            <div style="aspect-ratio: 16/9; background:#000; border-radius:var(--radius-md); overflow:hidden;">
+              <img id="screen-modal-img" src="" style="width:100%; height:100%; object-fit:contain;">
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('btn-close-screen-modal').onclick = () => modal.style.display = 'none';
+        modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+      }
+      document.getElementById('screen-modal-candidate-name').textContent = `Candidate Screen: ${name}`;
+      document.getElementById('screen-modal-img').src = src;
+      modal.style.display = 'flex';
     }
 
     function renderIncidentFeed() {
