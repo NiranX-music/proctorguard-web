@@ -1,1 +1,1 @@
-"""ProctorGuard Backend Root Package."""
+# Backend root package
