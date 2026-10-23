@@ -738,8 +738,8 @@ async def candidate_websocket_endpoint(
                 }))
                 continue
 
-            # 2. WebRTC signaling relay (offer, answer, ice-candidate, stream_status)
-            if msg_type in ("offer", "answer", "ice-candidate", "stream_status"):
+            # 2. WebRTC signaling relay and live media telemetry
+            if msg_type in ("offer", "answer", "ice-candidate", "stream_status", "stream_telemetry"):
                 await signaling.route_candidate_signaling(session_id, candidate_id, data)
                 continue
 
